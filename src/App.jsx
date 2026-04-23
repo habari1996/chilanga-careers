@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -10,6 +10,8 @@ export default function App() {
   const [tab, setTab] = useState("jobs");
   const [jobs, setJobs] = useState([]);
   const [apps, setApps] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const [form, setForm] = useState({
     full_name: "",
@@ -24,32 +26,33 @@ export default function App() {
   }, []);
 
   async function loadData() {
-    const { data: jobsData, error: jobsError } = await supabase
-      .from("jobs")
-      .select("*");
-
-    const { data: appData, error: appError } = await supabase
+    const { data: jobsData } = await supabase.from("jobs").select("*");
+    const { data: appData } = await supabase
       .from("applications")
-      .select("*");
+      .select("*")
+      .order("id", { ascending: false });
 
-    if (jobsError) console.error(jobsError);
-    if (appError) console.error(appError);
+    const normalized = (appData || []).map((a) => ({
+      ...a,
+      status: a.status || "New",
+      score: calculateScore(a)
+    }));
 
     setJobs(jobsData || []);
-    setApps(appData || []);
+    setApps(normalized);
+  }
+
+  function calculateScore(a) {
+    let score = 0;
+    if ((a.qualification || "").toLowerCase().includes("degree")) score += 50;
+    if ((a.skills || "").length > 3) score += 30;
+    if ((a.email || "").includes("@")) score += 20;
+    return score;
   }
 
   async function submitApplication() {
-    const { error } = await supabase.from("applications").insert(form);
-
-    if (error) {
-      alert("Error submitting application");
-      console.error(error);
-      return;
-    }
-
-    alert("Application Submitted Successfully");
-
+    await supabase.from("applications").insert(form);
+    alert("Application Submitted");
     setForm({
       full_name: "",
       email: "",
@@ -57,115 +60,155 @@ export default function App() {
       qualification: "",
       skills: ""
     });
-
     loadData();
     setTab("dashboard");
   }
 
+  async function updateStatus(id, status) {
+    await supabase.from("applications").update({ status }).eq("id", id);
+    loadData();
+  }
+
+  const filteredApps = useMemo(() => {
+    return apps.filter((a) => {
+      const matchesSearch =
+        (a.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (a.email || "").toLowerCase().includes(search.toLowerCase()) ||
+        (a.skills || "").toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "All" || a.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [apps, search, statusFilter]);
+
+  const stats = {
+    total: apps.length,
+    shortlisted: apps.filter((a) => a.status === "Shortlisted").length,
+    hired: apps.filter((a) => a.status === "Hired").length,
+    avgScore:
+      apps.length > 0
+        ? Math.round(
+            apps.reduce((sum, a) => sum + (a.score || 0), 0) / apps.length
+          )
+        : 0
+  };
+
   const styles = {
     page: {
       fontFamily: "Arial, sans-serif",
-      padding: "30px",
+      padding: "24px",
       background: "#f4f6f8",
       minHeight: "100vh"
     },
-    topbar: {
+    top: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: "25px",
       flexWrap: "wrap",
-      gap: "10px"
+      gap: "12px",
+      marginBottom: "20px"
     },
-    title: {
-      fontSize: "32px",
-      fontWeight: "bold",
-      color: "#1f2937"
-    },
-    buttons: {
-      display: "flex",
-      gap: "10px",
-      flexWrap: "wrap"
-    },
+    title: { fontSize: "34px", fontWeight: "bold" },
+    nav: { display: "flex", gap: "10px", flexWrap: "wrap" },
     btn: {
-      padding: "10px 16px",
-      border: "none",
+      padding: "10px 14px",
       borderRadius: "8px",
+      border: "1px solid #2563eb",
       background: "#2563eb",
-      color: "white",
+      color: "#fff",
       cursor: "pointer"
     },
-    btnSecondary: {
-      padding: "10px 16px",
-      border: "1px solid #2563eb",
+    btnLight: {
+      padding: "10px 14px",
       borderRadius: "8px",
-      background: "white",
+      border: "1px solid #2563eb",
+      background: "#fff",
       color: "#2563eb",
       cursor: "pointer"
     },
+    card: {
+      background: "#fff",
+      padding: "18px",
+      borderRadius: "14px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+    },
     grid: {
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
       gap: "16px"
-    },
-    card: {
-      background: "white",
-      padding: "18px",
-      borderRadius: "12px",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
     },
     input: {
       width: "100%",
       padding: "10px",
-      marginBottom: "10px",
       borderRadius: "8px",
-      border: "1px solid #d1d5db"
+      border: "1px solid #d1d5db",
+      marginBottom: "10px"
     },
-    sectionTitle: {
-      fontSize: "22px",
-      fontWeight: "bold",
-      marginBottom: "15px"
+    tableWrap: {
+      overflowX: "auto"
     },
-    badge: {
+    table: {
+      width: "100%",
+      borderCollapse: "collapse"
+    },
+    th: {
+      textAlign: "left",
+      padding: "10px",
+      background: "#eef2ff",
+      fontSize: "14px"
+    },
+    td: {
+      padding: "10px",
+      borderBottom: "1px solid #eee",
+      fontSize: "14px",
+      verticalAlign: "top"
+    },
+    badge: (text) => ({
       display: "inline-block",
-      padding: "4px 10px",
+      padding: "4px 8px",
       borderRadius: "999px",
-      background: "#e0e7ff",
-      color: "#3730a3",
       fontSize: "12px",
-      marginTop: "8px"
-    }
+      background:
+        text === "Hired"
+          ? "#dcfce7"
+          : text === "Shortlisted"
+          ? "#dbeafe"
+          : text === "Rejected"
+          ? "#fee2e2"
+          : "#f3f4f6",
+      color: "#111827"
+    })
   };
 
   return (
     <div style={styles.page}>
-      <div style={styles.topbar}>
+      <div style={styles.top}>
         <div style={styles.title}>Chilanga Cement PLC Careers</div>
 
-        <div style={styles.buttons}>
+        <div style={styles.nav}>
           <button style={styles.btn} onClick={() => setTab("jobs")}>
             Jobs
           </button>
-          <button style={styles.btnSecondary} onClick={() => setTab("apply")}>
+          <button style={styles.btnLight} onClick={() => setTab("apply")}>
             Apply
           </button>
-          <button style={styles.btnSecondary} onClick={() => setTab("dashboard")}>
-            HR Dashboard
+          <button style={styles.btnLight} onClick={() => setTab("dashboard")}>
+            Recruiter Dashboard
           </button>
         </div>
       </div>
 
       {tab === "jobs" && (
         <div>
-          <div style={styles.sectionTitle}>Open Positions</div>
-
+          <h2>Open Positions</h2>
           <div style={styles.grid}>
             {jobs.map((job) => (
               <div key={job.id} style={styles.card}>
                 <h3>{job.title}</h3>
                 <p><strong>Location:</strong> {job.location}</p>
                 <p>{job.description}</p>
-                <span style={styles.badge}>Open</span>
               </div>
             ))}
           </div>
@@ -174,54 +217,27 @@ export default function App() {
 
       {tab === "apply" && (
         <div style={{ ...styles.card, maxWidth: "650px" }}>
-          <div style={styles.sectionTitle}>Application Form</div>
+          <h2>Application Form</h2>
 
-          <input
-            style={styles.input}
-            placeholder="Full Name"
+          <input style={styles.input} placeholder="Full Name"
             value={form.full_name}
-            onChange={(e) =>
-              setForm({ ...form, full_name: e.target.value })
-            }
-          />
+            onChange={(e)=>setForm({...form, full_name:e.target.value})} />
 
-          <input
-            style={styles.input}
-            placeholder="Email"
+          <input style={styles.input} placeholder="Email"
             value={form.email}
-            onChange={(e) =>
-              setForm({ ...form, email: e.target.value })
-            }
-          />
+            onChange={(e)=>setForm({...form, email:e.target.value})} />
 
-          <input
-            style={styles.input}
-            placeholder="Phone"
+          <input style={styles.input} placeholder="Phone"
             value={form.phone}
-            onChange={(e) =>
-              setForm({ ...form, phone: e.target.value })
-            }
-          />
+            onChange={(e)=>setForm({...form, phone:e.target.value})} />
 
-          <input
-            style={styles.input}
-            placeholder="Qualification"
+          <input style={styles.input} placeholder="Qualification"
             value={form.qualification}
-            onChange={(e) =>
-              setForm({ ...form, qualification: e.target.value })
-            }
-          />
+            onChange={(e)=>setForm({...form, qualification:e.target.value})} />
 
-          <input
-            style={styles.input}
-            placeholder="Skills"
+          <input style={styles.input} placeholder="Skills"
             value={form.skills}
-            onChange={(e) =>
-              setForm({ ...form, skills: e.target.value })
-            }
-          />
-
-          <input type="file" style={styles.input} />
+            onChange={(e)=>setForm({...form, skills:e.target.value})} />
 
           <button style={styles.btn} onClick={submitApplication}>
             Submit Application
@@ -231,32 +247,106 @@ export default function App() {
 
       {tab === "dashboard" && (
         <div>
-          <div style={styles.sectionTitle}>HR Dashboard</div>
+          <h2>Recruiter Dashboard</h2>
 
-          <div style={styles.grid}>
+          <div style={{ ...styles.grid, marginBottom: "16px" }}>
             <div style={styles.card}>
-              <h3>Total Applications</h3>
-              <h1>{apps.length}</h1>
+              <div>Total Applicants</div>
+              <h1>{stats.total}</h1>
             </div>
-
             <div style={styles.card}>
-              <h3>Recent Applicants</h3>
+              <div>Shortlisted</div>
+              <h1>{stats.shortlisted}</h1>
+            </div>
+            <div style={styles.card}>
+              <div>Hired</div>
+              <h1>{stats.hired}</h1>
+            </div>
+            <div style={styles.card}>
+              <div>Average Score</div>
+              <h1>{stats.avgScore}%</h1>
+            </div>
+          </div>
 
-              {apps.length === 0 && <p>No applications yet.</p>}
+          <div style={{ ...styles.card, marginBottom: "16px" }}>
+            <div style={styles.grid}>
+              <input
+                style={styles.input}
+                placeholder="Search applicant..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
 
-              {apps.map((a) => (
-                <div
-                  key={a.id}
-                  style={{
-                    padding: "8px 0",
-                    borderBottom: "1px solid #eee"
-                  }}
-                >
-                  <strong>{a.full_name}</strong><br />
-                  {a.email}<br />
-                  <small>{a.qualification}</small>
-                </div>
-              ))}
+              <select
+                style={styles.input}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option>All</option>
+                <option>New</option>
+                <option>Shortlisted</option>
+                <option>Interview</option>
+                <option>Rejected</option>
+                <option>Hired</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Candidate</th>
+                    <th style={styles.th}>Qualification</th>
+                    <th style={styles.th}>Skills</th>
+                    <th style={styles.th}>Score</th>
+                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredApps.map((a) => (
+                    <tr key={a.id}>
+                      <td style={styles.td}>
+                        <strong>{a.full_name}</strong><br />
+                        {a.email}<br />
+                        {a.phone}
+                      </td>
+                      <td style={styles.td}>{a.qualification}</td>
+                      <td style={styles.td}>{a.skills}</td>
+                      <td style={styles.td}>{a.score}%</td>
+                      <td style={styles.td}>
+                        <span style={styles.badge(a.status)}>
+                          {a.status}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <select
+                          value={a.status}
+                          onChange={(e) =>
+                            updateStatus(a.id, e.target.value)
+                          }
+                        >
+                          <option>New</option>
+                          <option>Shortlisted</option>
+                          <option>Interview</option>
+                          <option>Rejected</option>
+                          <option>Hired</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredApps.length === 0 && (
+                    <tr>
+                      <td style={styles.td} colSpan="6">
+                        No matching applicants found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
