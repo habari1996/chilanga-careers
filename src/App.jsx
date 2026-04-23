@@ -30,6 +30,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(false);
+  const [selectedApplicant, setSelectedApplicant] = useState(null);
 
   const [form, setForm] = useState({
     full_name: "", nrc: "", dob: "", age: "", gender: "",
