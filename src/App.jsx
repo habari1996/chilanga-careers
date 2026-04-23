@@ -1,4 +1,3 @@
-// REPLACE ENTIRE src/App.jsx WITH THIS ENTERPRISE VERSION
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -45,7 +44,7 @@ const departments = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState("jobs");
+  const [tab, setTab] = useState("home");
   const [jobs, setJobs] = useState([]);
   const [apps, setApps] = useState([]);
   const [search, setSearch] = useState("");
@@ -110,15 +109,12 @@ export default function App() {
 
   function calculateScore(data) {
     let score = 0;
-
     const age = parseInt(data.age || "0");
+
     if (age > 0 && age <= 25) score += 30;
-
     if (data.qualification.includes("Bachelor")) score += 25;
-    else if (data.qualification.includes("Diploma")) score += 15;
-    else if (data.qualification.includes("Master")) score += 30;
-
-    if (data.skills && data.skills.length > 3) score += 20;
+    if (data.qualification.includes("Master")) score += 30;
+    if (data.skills) score += 20;
     if (data.experience) score += 10;
     if (data.right_to_work === "Yes") score += 10;
     if (data.criminal_record === "No") score += 5;
@@ -130,9 +126,7 @@ export default function App() {
     const { name, value } = e.target;
     let updated = { ...form, [name]: value };
 
-    if (name === "dob") {
-      updated.age = calcAge(value);
-    }
+    if (name === "dob") updated.age = calcAge(value);
 
     updated.score = calculateScore(updated);
     setForm(updated);
@@ -144,11 +138,7 @@ export default function App() {
     const fileName = `${Date.now()}_${file.name}`;
     const { error } = await supabase.storage.from("cvs").upload(fileName, file);
 
-    if (error) {
-      console.error(error);
-      alert("CV upload failed");
-      return "";
-    }
+    if (error) return "";
 
     const { data } = supabase.storage.from("cvs").getPublicUrl(fileName);
     return data.publicUrl;
@@ -157,11 +147,8 @@ export default function App() {
   async function submitApplication() {
     setLoading(true);
 
-    const fileInput = document.getElementById("cvFile");
-    const file = fileInput?.files?.[0];
-
-    let cvUrl = "";
-    if (file) cvUrl = await uploadCV(file);
+    const file = document.getElementById("cvFile")?.files?.[0];
+    const cvUrl = file ? await uploadCV(file) : "";
 
     const payload = {
       ...form,
@@ -174,8 +161,8 @@ export default function App() {
     setLoading(false);
 
     if (error) {
-      console.error(error);
       alert("Submission failed");
+      console.error(error);
       return;
     }
 
@@ -190,9 +177,7 @@ export default function App() {
   }
 
   function exportCSV() {
-    const rows = [
-      ["Name", "Email", "Qualification", "Institution", "Score", "Status"]
-    ];
+    const rows = [["Name","Email","Qualification","Institution","Score","Status"]];
 
     filteredApps.forEach((a) => {
       rows.push([
@@ -229,157 +214,140 @@ export default function App() {
     });
   }, [apps, search, statusFilter]);
 
-  const total = apps.length;
-  const shortlisted = apps.filter((a) => a.status === "Shortlisted").length;
-  const hired = apps.filter((a) => a.status === "Hired").length;
-  const avgScore =
-    apps.length > 0
-      ? Math.round(
-          apps.reduce((sum, a) => sum + Number(a.score || 0), 0) / apps.length
-        )
-      : 0;
-
   const s = {
-    page: { fontFamily: "Arial", padding: 20, background: "#f4f6f8", minHeight: "100vh" },
-    top: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 20 },
-    title: { fontSize: 28, fontWeight: "bold" },
-    nav: { display: "flex", gap: 10, flexWrap: "wrap" },
-    btn: { padding: "10px 14px", borderRadius: 8, border: "1px solid #2563eb", background: "#2563eb", color: "#fff", cursor: "pointer" },
-    btn2: { padding: "10px 14px", borderRadius: 8, border: "1px solid #2563eb", background: "#fff", color: "#2563eb", cursor: "pointer" },
-    card: { background: "#fff", padding: 18, borderRadius: 14, boxShadow: "0 2px 8px rgba(0,0,0,.08)", marginBottom: 16 },
-    grid2: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 },
-    grid4: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 },
-    input: { width: "100%", padding: 10, borderRadius: 8, border: "1px solid #d1d5db" },
-    area: { width: "100%", padding: 10, borderRadius: 8, border: "1px solid #d1d5db", minHeight: 90 },
-    table: { width: "100%", borderCollapse: "collapse" },
-    th: { textAlign: "left", padding: 10, background: "#eef2ff" },
-    td: { padding: 10, borderBottom: "1px solid #eee", verticalAlign: "top" },
-    h2: { margin: "0 0 12px 0" }
+    page:{fontFamily:"Arial",background:"#f4f6f8",minHeight:"100vh"},
+    nav:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 24px",background:"#111827",color:"#fff",flexWrap:"wrap",gap:10},
+    brand:{fontSize:24,fontWeight:"bold"},
+    navBtns:{display:"flex",gap:8,flexWrap:"wrap"},
+    btn:{padding:"10px 14px",borderRadius:8,border:"none",background:"#f59e0b",color:"#111",cursor:"pointer",fontWeight:"bold"},
+    btn2:{padding:"10px 14px",borderRadius:8,border:"1px solid #fff",background:"transparent",color:"#fff",cursor:"pointer"},
+    hero:{padding:"70px 24px",background:"linear-gradient(135deg,#111827,#1d4ed8)",color:"#fff",textAlign:"center"},
+    heroTitle:{fontSize:42,fontWeight:"bold",marginBottom:10},
+    heroText:{fontSize:18,maxWidth:800,margin:"0 auto 20px"},
+    section:{padding:"32px 24px"},
+    grid3:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16},
+    card:{background:"#fff",padding:18,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,.08)"},
+    input:{width:"100%",padding:10,borderRadius:8,border:"1px solid #d1d5db"},
+    grid2:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12},
+    footer:{padding:24,textAlign:"center",background:"#111827",color:"#fff",marginTop:30}
   };
 
   return (
     <div style={s.page}>
-      <div style={s.top}>
-        <div style={s.title}>Chilanga Cement PLC Careers</div>
-        <div style={s.nav}>
-          <button style={tab==="jobs"?s.btn:s.btn2} onClick={() => setTab("jobs")}>Jobs</button>
-          <button style={tab==="apply"?s.btn:s.btn2} onClick={() => setTab("apply")}>Apply</button>
-          <button style={tab==="dashboard"?s.btn:s.btn2} onClick={() => setTab("dashboard")}>Recruiter Dashboard</button>
+      <div style={s.nav}>
+        <div style={s.brand}>Chilanga Cement PLC Careers</div>
+        <div style={s.navBtns}>
+          <button style={s.btn2} onClick={()=>setTab("home")}>Home</button>
+          <button style={s.btn2} onClick={()=>setTab("jobs")}>Jobs</button>
+          <button style={s.btn2} onClick={()=>setTab("dashboard")}>Dashboard</button>
+          <button style={s.btn} onClick={()=>setTab("apply")}>Apply Now</button>
         </div>
       </div>
 
-      {tab === "jobs" && (
-        <div style={s.card}>
-          <h2 style={s.h2}>Open Positions</h2>
-          {jobs.map((j) => (
-            <div key={j.id} style={{ padding: 12, border: "1px solid #eee", borderRadius: 10, marginBottom: 10 }}>
-              <strong>{j.title}</strong><br />
-              <small>{j.location}</small>
-              <p>{j.description}</p>
+      {tab === "home" && (
+        <>
+          <div style={s.hero}>
+            <div style={s.heroTitle}>Chilanga Cement Step Up Program 2026</div>
+            <div style={s.heroText}>
+              Launch your career with Zambia’s leading cement manufacturer.
+              Join our Graduate Trainee & Internship Program and gain real industry experience.
             </div>
-          ))}
+            <button style={s.btn} onClick={()=>setTab("apply")}>Start Application</button>
+          </div>
+
+          <div style={s.section}>
+            <h2>Why Join Us</h2>
+            <div style={s.grid3}>
+              <div style={s.card}>12-month structured development program</div>
+              <div style={s.card}>Mentorship from experienced professionals</div>
+              <div style={s.card}>Real work experience in industry</div>
+              <div style={s.card}>Career growth opportunities</div>
+              <div style={s.card}>Professional skills development</div>
+              <div style={s.card}>Exposure to a leading manufacturing business</div>
+            </div>
+          </div>
+
+          <div style={s.section}>
+            <h2>Fields We Recruit</h2>
+            <div style={s.grid3}>
+              {departments.map((d) => (
+                <div key={d} style={s.card}>{d}</div>
+              ))}
+            </div>
+          </div>
+
+          <div style={s.section}>
+            <h2>Application Process</h2>
+            <div style={s.grid3}>
+              <div style={s.card}>1. Apply Online</div>
+              <div style={s.card}>2. Screening</div>
+              <div style={s.card}>3. Shortlisting</div>
+              <div style={s.card}>4. Interview</div>
+              <div style={s.card}>5. Offer</div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === "jobs" && (
+        <div style={s.section}>
+          <h2>Open Opportunities</h2>
+          <div style={s.grid3}>
+            {jobs.map((j)=>(
+              <div key={j.id} style={s.card}>
+                <strong>{j.title}</strong><br />
+                <small>{j.location}</small>
+                <p>{j.description}</p>
+                <button style={s.btn} onClick={()=>setTab("apply")}>Apply</button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {tab === "apply" && (
-        <>
+        <div style={s.section}>
           <div style={s.card}>
-            <h2 style={s.h2}>Personal Details</h2>
+            <h2>Application Form</h2>
             <div style={s.grid2}>
               <input name="full_name" placeholder="Full Name" style={s.input} onChange={handleChange}/>
-              <input name="nrc" placeholder="NRC / Passport" style={s.input} onChange={handleChange}/>
-              <input name="dob" type="date" style={s.input} onChange={handleChange}/>
-              <input name="age" placeholder="Age (auto)" value={form.age} readOnly style={s.input}/>
-              <select name="gender" style={s.input} onChange={handleChange}><option value="">Gender</option><option>Male</option><option>Female</option></select>
-              <input name="nationality" placeholder="Nationality" style={s.input} onChange={handleChange}/>
-              <input name="address" placeholder="Address" style={s.input} onChange={handleChange}/>
-              <input name="town" placeholder="Town / City" style={s.input} onChange={handleChange}/>
-              <input name="province" placeholder="Province" style={s.input} onChange={handleChange}/>
-            </div>
-          </div>
-
-          <div style={s.card}>
-            <h2 style={s.h2}>Contact</h2>
-            <div style={s.grid2}>
               <input name="email" placeholder="Email" style={s.input} onChange={handleChange}/>
               <input name="phone" placeholder="Phone" style={s.input} onChange={handleChange}/>
-              <input name="alt_phone" placeholder="Alternative Phone" style={s.input} onChange={handleChange}/>
-            </div>
-          </div>
-
-          <div style={s.card}>
-            <h2 style={s.h2}>Education</h2>
-            <div style={s.grid2}>
+              <input name="dob" type="date" style={s.input} onChange={handleChange}/>
+              <input name="age" value={form.age} readOnly placeholder="Age" style={s.input}/>
               <select name="qualification" style={s.input} onChange={handleChange}>
-                <option value="">Highest Qualification</option>
+                <option value="">Qualification</option>
                 {qualifications.map(q => <option key={q}>{q}</option>)}
               </select>
-              <input name="degree_title" placeholder="Degree Title" style={s.input} onChange={handleChange}/>
-              <input name="field_of_study" placeholder="Field of Study" style={s.input} onChange={handleChange}/>
               <select name="institution" style={s.input} onChange={handleChange}>
                 <option value="">Institution</option>
                 {institutions.map(i => <option key={i}>{i}</option>)}
               </select>
-              <input name="graduation_year" placeholder="Graduation Year" style={s.input} onChange={handleChange}/>
-              <input name="gpa" placeholder="Grade / GPA" style={s.input} onChange={handleChange}/>
-            </div>
-          </div>
-
-          <div style={s.card}>
-            <h2 style={s.h2}>Internship Fit</h2>
-            <div style={s.grid2}>
               <select name="department" style={s.input} onChange={handleChange}>
                 <option value="">Preferred Department</option>
                 {departments.map(d => <option key={d}>{d}</option>)}
               </select>
-              <input name="start_date" type="date" style={s.input} onChange={handleChange}/>
-              <select name="relocate" style={s.input} onChange={handleChange}>
-                <option value="">Willing to Relocate?</option><option>Yes</option><option>No</option>
-              </select>
-            </div>
-            <textarea name="motivation" placeholder="Why do you want to join?" style={s.area} onChange={handleChange}/>
-          </div>
-
-          <div style={s.card}>
-            <h2 style={s.h2}>Experience</h2>
-            <div style={s.grid2}>
-              <input name="experience" placeholder="Previous Experience" style={s.input} onChange={handleChange}/>
-              <input name="certifications" placeholder="Certifications" style={s.input} onChange={handleChange}/>
               <input name="skills" placeholder="Technical Skills" style={s.input} onChange={handleChange}/>
-              <input name="languages" placeholder="Languages" style={s.input} onChange={handleChange}/>
+              <input id="cvFile" type="file" style={s.input}/>
+              <input value={`Auto Score: ${form.score}%`} readOnly style={s.input}/>
+            </div>
+
+            <div style={{marginTop:16}}>
+              <button style={s.btn} disabled={loading} onClick={submitApplication}>
+                {loading ? "Submitting..." : "Submit Application"}
+              </button>
             </div>
           </div>
-
-          <div style={s.card}>
-            <h2 style={s.h2}>Compliance & Uploads</h2>
-            <div style={s.grid2}>
-              <select name="right_to_work" style={s.input} onChange={handleChange}><option value="">Right to work?</option><option>Yes</option><option>No</option></select>
-              <select name="criminal_record" style={s.input} onChange={handleChange}><option value="">Criminal Record?</option><option>No</option><option>Yes</option></select>
-              <input id="cvFile" type="file" accept=".pdf,.doc,.docx" style={s.input}/>
-              <input name="score" value={`Auto Score: ${form.score}%`} readOnly style={s.input}/>
-            </div>
-          </div>
-
-          <button style={s.btn} disabled={loading} onClick={submitApplication}>
-            {loading ? "Submitting..." : "Submit Application"}
-          </button>
-        </>
+        </div>
       )}
 
       {tab === "dashboard" && (
-        <>
-          <h2 style={{ marginBottom: 12 }}>Recruiter Dashboard</h2>
+        <div style={s.section}>
+          <h2>Recruiter Dashboard</h2>
 
-          <div style={s.grid4}>
-            <div style={s.card}><strong>Total Applicants</strong><h1>{total}</h1></div>
-            <div style={s.card}><strong>Shortlisted</strong><h1>{shortlisted}</h1></div>
-            <div style={s.card}><strong>Hired</strong><h1>{hired}</h1></div>
-            <div style={s.card}><strong>Average Score</strong><h1>{avgScore}%</h1></div>
-          </div>
-
-          <div style={s.card}>
+          <div style={{...s.card,marginBottom:16}}>
             <div style={s.grid2}>
-              <input placeholder="Search applicant..." style={s.input} value={search} onChange={(e)=>setSearch(e.target.value)}/>
+              <input placeholder="Search applicant..." style={s.input} value={search} onChange={(e)=>setSearch(e.target.value)} />
               <select style={s.input} value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}>
                 <option>All</option>
                 <option>New</option>
@@ -388,55 +356,32 @@ export default function App() {
                 <option>Hired</option>
               </select>
             </div>
-            <div style={{ marginTop: 12 }}>
-              <button style={s.btn} onClick={exportCSV}>Export to Excel (CSV)</button>
+            <div style={{marginTop:12}}>
+              <button style={s.btn} onClick={exportCSV}>Export CSV</button>
             </div>
           </div>
 
           <div style={s.card}>
-            <table style={s.table}>
-              <thead>
-                <tr>
-                  <th style={s.th}>Candidate</th>
-                  <th style={s.th}>Qualification</th>
-                  <th style={s.th}>Skills</th>
-                  <th style={s.th}>Score</th>
-                  <th style={s.th}>Status</th>
-                  <th style={s.th}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredApps.map((a) => (
-                  <tr key={a.id}>
-                    <td style={s.td}>
-                      <strong>{a.full_name}</strong><br />
-                      {a.email}<br />
-                      <small>{a.institution}</small><br />
-                      {a.cv_url && (
-                        <a href={a.cv_url} target="_blank" rel="noreferrer">View CV</a>
-                      )}
-                    </td>
-                    <td style={s.td}>{a.qualification}</td>
-                    <td style={s.td}>{a.skills}</td>
-                    <td style={s.td}>{a.score || 0}%</td>
-                    <td style={s.td}>{a.status}</td>
-                    <td style={s.td}>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <button style={s.btn2} onClick={()=>updateStatus(a.id,"Shortlisted")}>Shortlist</button>
-                        <button style={s.btn2} onClick={()=>updateStatus(a.id,"Rejected")}>Reject</button>
-                        <button style={s.btn2} onClick={()=>updateStatus(a.id,"Hired")}>Hire</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredApps.length === 0 && (
-                  <tr><td colSpan="6" style={s.td}>No matching applicants found.</td></tr>
-                )}
-              </tbody>
-            </table>
+            {filteredApps.map((a)=>(
+              <div key={a.id} style={{padding:"12px 0",borderBottom:"1px solid #eee"}}>
+                <strong>{a.full_name}</strong> - {a.email}<br />
+                {a.qualification} | {a.institution} | Score: {a.score || 0}%<br />
+                Status: {a.status}
+                <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {a.cv_url && <a href={a.cv_url} target="_blank" rel="noreferrer">View CV</a>}
+                  <button style={s.btn2} onClick={()=>updateStatus(a.id,"Shortlisted")}>Shortlist</button>
+                  <button style={s.btn2} onClick={()=>updateStatus(a.id,"Rejected")}>Reject</button>
+                  <button style={s.btn2} onClick={()=>updateStatus(a.id,"Hired")}>Hire</button>
+                </div>
+              </div>
+            ))}
           </div>
-        </>
+        </div>
       )}
+
+      <div style={s.footer}>
+        © 2026 Chilanga Cement PLC • Careers Portal
+      </div>
     </div>
   );
 }
