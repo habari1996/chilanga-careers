@@ -393,61 +393,228 @@ export default function App() {
     </div>
   </div>
 )}
+{tab === "dashboard" && (
+  <div style={s.section}>
+    <h2>Recruiter Dashboard</h2>
 
-        {tab === "dashboard" && (
-          <div style={s.section}>
-            <h2>Recruiter Dashboard</h2>
+    {/* top controls */}
+    <div style={{ ...s.card, marginBottom: 16 }}>
+      <div style={s.grid2}>
+        <input
+          placeholder="Search applicant..."
+          style={s.input}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-            <div style={{...s.card,marginBottom:16}}>
-              <div style={s.grid2}>
-                <input
-                  placeholder="Search applicant..."
-                  style={s.input}
-                  value={search}
-                  onChange={(e)=>setSearch(e.target.value)}
-                />
-                <select
-                  style={s.input}
-                  value={statusFilter}
-                  onChange={(e)=>setStatusFilter(e.target.value)}
-                >
-                  <option>All</option>
-                  <option>New</option>
-                  <option>Shortlisted</option>
-                  <option>Rejected</option>
-                  <option>Hired</option>
-                </select>
-              </div>
-              <div style={{marginTop:12}}>
-                <button style={s.btn} onClick={exportCSV}>Export CSV</button>
-              </div>
+        <select
+          style={s.input}
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option>All</option>
+          <option>New</option>
+          <option>Shortlisted</option>
+          <option>Rejected</option>
+          <option>Hired</option>
+        </select>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <button style={s.btn} onClick={exportCSV}>
+          Export CSV
+        </button>
+      </div>
+    </div>
+
+    {/* KPI cards */}
+    <div style={s.grid}>
+      <div style={s.card}>
+        <strong>Total Applicants</strong>
+        <h1>{apps.length}</h1>
+      </div>
+
+      <div style={s.card}>
+        <strong>Shortlisted</strong>
+        <h1>{apps.filter(a => a.status === "Shortlisted").length}</h1>
+      </div>
+
+      <div style={s.card}>
+        <strong>Hired</strong>
+        <h1>{apps.filter(a => a.status === "Hired").length}</h1>
+      </div>
+
+      <div style={s.card}>
+        <strong>Rejected</strong>
+        <h1>{apps.filter(a => a.status === "Rejected").length}</h1>
+      </div>
+    </div>
+
+    {/* candidates list */}
+    <div style={{ marginTop: 20 }}>
+      {filteredApps.map((a) => (
+        <div
+          key={a.id}
+          style={{
+            ...s.card,
+            marginBottom: 14,
+            cursor: "pointer"
+          }}
+          onClick={() => setSelectedApplicant(a)}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr 1fr 1fr",
+              gap: 10,
+              alignItems: "center"
+            }}
+          >
+            <div>
+              <strong>{a.full_name}</strong><br />
+              <small>{a.email}</small>
             </div>
 
-            <div style={s.grid}>
-              {filteredApps.map((a)=>(
-                <div key={a.id} style={s.card}>
-                  <strong>{a.full_name}</strong><br />
-                  <small>{a.email}</small><br /><br />
-                  {a.qualification}<br />
-                  {a.institution}<br />
-                  Score: {a.score || 0}%<br />
-                  Status: <span style={s.tag}>{a.status}</span>
+            <div>{a.qualification || "-"}</div>
 
-                  <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap"}}>
-                    {a.cv_url && (
-                      <a href={a.cv_url} target="_blank" rel="noreferrer">
-                        View CV
-                      </a>
-                    )}
-                    <button style={s.btnGhost} onClick={()=>updateStatus(a.id,"Shortlisted")}>Shortlist</button>
-                    <button style={s.btnGhost} onClick={()=>updateStatus(a.id,"Rejected")}>Reject</button>
-                    <button style={s.btnGhost} onClick={()=>updateStatus(a.id,"Hired")}>Hire</button>
-                  </div>
-                </div>
-              ))}
+            <div>Score: {a.score || 0}%</div>
+
+            <div>
+              <span style={s.tag}>{a.status || "New"}</span>
             </div>
           </div>
-        )}
+        </div>
+      ))}
+    </div>
+
+    {/* drawer modal */}
+    {selectedApplicant && (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,.45)",
+          zIndex: 999,
+          display: "flex",
+          justifyContent: "flex-end"
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            background: "#fff",
+            height: "100vh",
+            overflowY: "auto",
+            padding: 20,
+            boxSizing: "border-box"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 18
+            }}
+          >
+            <h2 style={{ margin: 0 }}>Candidate Profile</h2>
+
+            <button
+              style={s.btnGhost}
+              onClick={() => setSelectedApplicant(null)}
+            >
+              Close
+            </button>
+          </div>
+
+          {/* personal */}
+          <div style={s.card}>
+            <h3>Personal Details</h3>
+            <p><strong>Name:</strong> {selectedApplicant.full_name}</p>
+            <p><strong>NRC:</strong> {selectedApplicant.nrc || "-"}</p>
+            <p><strong>Gender:</strong> {selectedApplicant.gender || "-"}</p>
+            <p><strong>Age:</strong> {selectedApplicant.age || "-"}</p>
+            <p><strong>Nationality:</strong> {selectedApplicant.nationality || "-"}</p>
+            <p><strong>Phone:</strong> {selectedApplicant.phone || "-"}</p>
+            <p><strong>Email:</strong> {selectedApplicant.email || "-"}</p>
+            <p><strong>Address:</strong> {selectedApplicant.address || "-"}</p>
+          </div>
+
+          {/* education */}
+          <div style={{ ...s.card, marginTop: 14 }}>
+            <h3>Education</h3>
+            <p><strong>Qualification:</strong> {selectedApplicant.qualification || "-"}</p>
+            <p><strong>Degree:</strong> {selectedApplicant.degree_title || "-"}</p>
+            <p><strong>Field:</strong> {selectedApplicant.field_of_study || "-"}</p>
+            <p><strong>Institution:</strong> {selectedApplicant.institution || "-"}</p>
+            <p><strong>Year:</strong> {selectedApplicant.graduation_year || "-"}</p>
+            <p><strong>GPA:</strong> {selectedApplicant.gpa || "-"}</p>
+          </div>
+
+          {/* experience */}
+          <div style={{ ...s.card, marginTop: 14 }}>
+            <h3>Experience</h3>
+            <p><strong>Experience:</strong> {selectedApplicant.experience || "-"}</p>
+            <p><strong>Certifications:</strong> {selectedApplicant.certifications || "-"}</p>
+            <p><strong>Skills:</strong> {selectedApplicant.skills || "-"}</p>
+            <p><strong>Languages:</strong> {selectedApplicant.languages || "-"}</p>
+          </div>
+
+          {/* compliance */}
+          <div style={{ ...s.card, marginTop: 14 }}>
+            <h3>Compliance</h3>
+            <p><strong>Age ≤ 25:</strong> {selectedApplicant.age_confirm || "-"}</p>
+            <p><strong>Right to Work:</strong> {selectedApplicant.right_to_work || "-"}</p>
+            <p><strong>Criminal Record:</strong> {selectedApplicant.criminal_record || "-"}</p>
+          </div>
+
+          {/* documents */}
+          <div style={{ ...s.card, marginTop: 14 }}>
+            <h3>Documents</h3>
+
+            {selectedApplicant.cv_url ? (
+              <p>
+                <a
+                  href={selectedApplicant.cv_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View CV
+                </a>
+              </p>
+            ) : <p>No CV uploaded</p>}
+          </div>
+
+          {/* actions */}
+          <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              style={s.btnGhost}
+              onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")}
+            >
+              Shortlist
+            </button>
+
+            <button
+              style={s.btnGhost}
+              onClick={() => updateStatus(selectedApplicant.id, "Rejected")}
+            >
+              Reject
+            </button>
+
+            <button
+              style={s.btn}
+              onClick={() => updateStatus(selectedApplicant.id, "Hired")}
+            >
+              Hire
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+        
       </div>
 
       <div style={s.footer}>
