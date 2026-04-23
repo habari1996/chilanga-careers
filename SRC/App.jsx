@@ -1,0 +1,1 @@
+import React from 'react'; export default function(){return <div style={{padding:40,fontFamily:'Arial'}}><h1>Chilanga Cement Careers</h1><p>Professional starter version ready for GitHub Pages + Supabase.</p></div>}
