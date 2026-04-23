@@ -233,40 +233,166 @@ export default function App() {
           </div>
         )}
 
-        {tab === "apply" && (
-          <div style={s.section}>
-            <div style={s.card}>
-              <h2>Application Form</h2>
-              <div style={s.grid2}>
-                <input name="full_name" placeholder="Full Name" style={s.input} onChange={handleChange}/>
-                <input name="email" placeholder="Email" style={s.input} onChange={handleChange}/>
-                <input name="phone" placeholder="Phone" style={s.input} onChange={handleChange}/>
-                <input name="dob" type="date" style={s.input} onChange={handleChange}/>
-                <input name="age" value={form.age} readOnly placeholder="Age" style={s.input}/>
-                <select name="qualification" style={s.input} onChange={handleChange}>
-                  <option value="">Qualification</option>
-                  {qualifications.map(q => <option key={q}>{q}</option>)}
-                </select>
-                <select name="institution" style={s.input} onChange={handleChange}>
-                  <option value="">Institution</option>
-                  {institutions.map(i => <option key={i}>{i}</option>)}
-                </select>
-                <select name="department" style={s.input} onChange={handleChange}>
-                  <option value="">Preferred Department</option>
-                  {departments.map(d => <option key={d}>{d}</option>)}
-                </select>
-                <input name="skills" placeholder="Technical Skills" style={s.input} onChange={handleChange}/>
-                <input id="cvFile" type="file" style={s.input}/>
-                <input value={`Auto Score: ${form.score}%`} readOnly style={s.input}/>
-              </div>
-              <div style={{marginTop:16}}>
-                <button style={s.btn} disabled={loading} onClick={submitApplication}>
-                  {loading ? "Submitting..." : "Submit Application"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+       {tab === "apply" && (
+  <div style={s.section}>
+    <div style={s.card}>
+      <h2 style={{ marginTop: 0 }}>Enterprise Application Form</h2>
+
+      {/* PERSONAL DETAILS */}
+      <h3>Personal Details</h3>
+      <div style={s.grid2}>
+        <input name="full_name" placeholder="Full Name" style={s.input} onChange={handleChange} />
+        <input name="nrc" placeholder="NRC / Passport" style={s.input} onChange={handleChange} />
+        <input name="dob" type="date" style={s.input} onChange={handleChange} />
+        <input name="age" value={form.age} readOnly placeholder="Age" style={s.input} />
+        <select name="gender" style={s.input} onChange={handleChange}>
+          <option value="">Gender</option>
+          <option>Male</option>
+          <option>Female</option>
+        </select>
+        <input name="nationality" placeholder="Nationality" style={s.input} onChange={handleChange} />
+
+        <input name="address" placeholder="Residential Address" style={s.input} onChange={handleChange} />
+        <input name="town" placeholder="Town / City" style={s.input} onChange={handleChange} />
+        <input name="province" placeholder="Province" style={s.input} onChange={handleChange} />
+      </div>
+
+      {/* CONTACT */}
+      <h3 style={{ marginTop: 25 }}>Contact Information</h3>
+      <div style={s.grid2}>
+        <input name="email" placeholder="Email" style={s.input} onChange={handleChange} />
+        <input name="phone" placeholder="Phone Number" style={s.input} onChange={handleChange} />
+        <input name="alt_phone" placeholder="Alternative Phone" style={s.input} onChange={handleChange} />
+      </div>
+
+      {/* EDUCATION */}
+      <h3 style={{ marginTop: 25 }}>Education</h3>
+      <div style={s.grid2}>
+        <select name="qualification" style={s.input} onChange={handleChange}>
+          <option value="">Highest Qualification</option>
+          {qualifications.map((q) => (
+            <option key={q}>{q}</option>
+          ))}
+        </select>
+
+        <input name="degree_title" placeholder="Degree Title" style={s.input} onChange={handleChange} />
+        <input name="field_of_study" placeholder="Field of Study" style={s.input} onChange={handleChange} />
+
+        <select name="institution" style={s.input} onChange={handleChange}>
+          <option value="">Institution</option>
+          {institutions.map((i) => (
+            <option key={i}>{i}</option>
+          ))}
+        </select>
+
+        <input name="graduation_year" placeholder="Graduation Year" style={s.input} onChange={handleChange} />
+        <input name="gpa" placeholder="Grade / GPA" style={s.input} onChange={handleChange} />
+      </div>
+
+      {/* INTERNSHIP FIT */}
+      <h3 style={{ marginTop: 25 }}>Internship Fit</h3>
+      <div style={s.grid2}>
+        <select name="department" style={s.input} onChange={handleChange}>
+          <option value="">Preferred Department</option>
+          {departments.map((d) => (
+            <option key={d}>{d}</option>
+          ))}
+        </select>
+
+        <input name="start_date" type="date" style={s.input} onChange={handleChange} />
+
+        <select name="relocate" style={s.input} onChange={handleChange}>
+          <option value="">Willing to Relocate?</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+
+      <textarea
+        name="motivation"
+        placeholder="Why do you want to join the Step Up Program?"
+        rows="4"
+        style={{ ...s.input, marginTop: 10 }}
+        onChange={handleChange}
+      />
+
+      {/* EXPERIENCE */}
+      <h3 style={{ marginTop: 25 }}>Experience</h3>
+      <div style={s.grid2}>
+        <input name="experience" placeholder="Previous Internship / Work Experience" style={s.input} onChange={handleChange} />
+        <input name="certifications" placeholder="Certifications" style={s.input} onChange={handleChange} />
+        <input name="skills" placeholder="Technical Skills" style={s.input} onChange={handleChange} />
+        <input name="languages" placeholder="Languages Spoken" style={s.input} onChange={handleChange} />
+      </div>
+
+      {/* COMPLIANCE */}
+      <h3 style={{ marginTop: 25 }}>Compliance Questions</h3>
+      <div style={s.grid2}>
+        <select name="age_confirm" style={s.input} onChange={handleChange}>
+          <option value="">Are you 25 years or below?</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+
+        <select name="right_to_work" style={s.input} onChange={handleChange}>
+          <option value="">Do you have right to work in Zambia?</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+
+        <select name="criminal_record" style={s.input} onChange={handleChange}>
+          <option value="">Any criminal record?</option>
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+
+      {/* UPLOADS */}
+      <h3 style={{ marginTop: 25 }}>Uploads</h3>
+      <div style={s.grid2}>
+        <div>
+          <label>CV</label>
+          <input id="cvFile" type="file" style={s.input} />
+        </div>
+
+        <div>
+          <label>Cover Letter</label>
+          <input type="file" style={s.input} />
+        </div>
+
+        <div>
+          <label>Academic Results</label>
+          <input type="file" style={s.input} />
+        </div>
+
+        <div>
+          <label>NRC Copy</label>
+          <input type="file" style={s.input} />
+        </div>
+      </div>
+
+      {/* SCORE */}
+      <div style={{ marginTop: 20 }}>
+        <input
+          value={`Auto Candidate Score: ${form.score}%`}
+          readOnly
+          style={s.input}
+        />
+      </div>
+
+      {/* SUBMIT */}
+      <div style={{ marginTop: 20 }}>
+        <button
+          style={s.btn}
+          disabled={loading}
+          onClick={submitApplication}
+        >
+          {loading ? "Submitting..." : "Submit Enterprise Application"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
         {tab === "dashboard" && (
           <div style={s.section}>
