@@ -1,6 +1,16 @@
+Yes, you are definitely using **Supabase** as your database. 
+
+I can tell because your code imports `createClient` from `@supabase/supabase-js` and initializes it with a specific Supabase URL (`wpynkjowoosxcegtvzvq.supabase.co`).
+
+I have updated your code below to fix the **`available_date`** error by aligning the frontend state and input names with your actual database column name (**`start_date`**). I also cleaned up the `submitApplication` logic to ensure the payload is clean.
+
+### Updated App.js
+
+```javascript
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
+// Initializing Supabase Connection
 const supabase = createClient(
   "https://wpynkjowoosxcegtvzvq.supabase.co",
   "sb_publishable_CV28W6y2OtnvilPA3fvhXw_is9OTArM"
@@ -16,8 +26,6 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [loading, setLoading] = useState(false);
-
-  // FIX 6: submission confirmation state
   const [submitted, setSubmitted] = useState(false);
 
   const [authMode, setAuthMode] = useState("login");
@@ -26,6 +34,7 @@ export default function App() {
   const [authName, setAuthName] = useState("");
   const [authMessage, setAuthMessage] = useState("");
 
+  // FIX: Changed available_date to start_date to match your SQL schema
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -34,6 +43,7 @@ export default function App() {
     institution: "",
     skills: "",
     age: "",
+    start_date: "", 
     score: 0,
     status: "New",
     cv_url: ""
@@ -41,17 +51,12 @@ export default function App() {
 
   useEffect(() => {
     loadData();
-
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
     });
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setSession(session);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -87,13 +92,12 @@ export default function App() {
 
   async function submitApplication() {
     setLoading(true);
-
     const file = document.getElementById("cvFile")?.files?.[0];
     const cvUrl = file ? await uploadCV(file) : "";
 
+    // The payload now correctly uses start_date from the form state
     const payload = { ...form, cv_url: cvUrl, score: calculateScore(form) };
 
-    // FIX 3: prevent duplicate submissions by email
     const { data: existing } = await supabase
       .from("applications")
       .select("id")
@@ -114,7 +118,6 @@ export default function App() {
       return;
     }
 
-    // FIX 6: show confirmation page instead of alert
     setSubmitted(true);
     setTab("confirmation");
     loadData();
@@ -222,8 +225,6 @@ export default function App() {
       </div>
 
       <div style={s.wrap}>
-
-        {/* FIX 1: year consistently 2026 on home */}
         {tab === "home" && (
           <div style={s.section}>
             <div style={s.card}>
@@ -250,7 +251,6 @@ export default function App() {
           </div>
         )}
 
-        {/* FIX 1: title says 2026; FIX 4: date field labelled; FIX 5: score hidden */}
         {tab === "apply" && (
           <div style={s.section}>
             <div style={s.card}>
@@ -275,7 +275,8 @@ export default function App() {
               <input name="skills" placeholder="e.g. AutoCAD, Excel, Python" style={s.input} onChange={handleChange} />
 
               <label style={s.label}>Available Start Date</label>
-              <input name="available_date" type="date" style={s.input} onChange={handleChange} />
+              {/* FIX: name property changed to start_date */}
+              <input name="start_date" type="date" style={s.input} onChange={handleChange} />
 
               <label style={s.label}>Upload CV (PDF or Word)</label>
               <input id="cvFile" type="file" accept=".pdf,.doc,.docx" style={s.input} />
@@ -287,7 +288,6 @@ export default function App() {
           </div>
         )}
 
-        {/* FIX 6: confirmation page */}
         {tab === "confirmation" && (
           <div style={s.section}>
             <div style={{...s.card, maxWidth:560, margin:"0 auto", textAlign:"center"}}>
@@ -324,7 +324,6 @@ export default function App() {
           </div>
         )}
 
-        {/* FIX 2: dashboard only renders when session && isHR */}
         {tab === "dashboard" && session && isHR && (
           <div style={s.section}>
             <div style={s.card}>
@@ -409,7 +408,6 @@ export default function App() {
           </div>
         )}
 
-        {/* FIX 2: show lock screen if not logged in as HR */}
         {tab === "dashboard" && (!session || !isHR) && (
           <div style={s.section}>
             <div style={{...s.card, maxWidth:420, margin:"0 auto", textAlign:"center"}}>
@@ -419,7 +417,6 @@ export default function App() {
             </div>
           </div>
         )}
-
       </div>
 
       <div style={s.footer}>
@@ -428,3 +425,4 @@ export default function App() {
     </div>
   );
 }
+```
