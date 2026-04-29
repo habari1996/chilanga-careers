@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 
 import Navbar from "./components/Navbar";
 import ApplyForm from "./components/ApplyForm";
@@ -8,18 +7,13 @@ import Dashboard from "./components/Dashboard";
 import JobList from "./components/JobList";
 import Confirmation from "./components/Confirmation";
 
-const supabase = createClient(
-  "https://wpynkjowoosxcegtvzvq.supabase.co",
-  "sb_publishable_CV28W6y2OtnvilPA3fvhXw_is9OTArM"
-);
-
 export default function App() {
   const [tab, setTab] = useState("home");
   const [session, setSession] = useState(null);
   const [apps, setApps] = useState([]);
   const [jobs, setJobs] = useState([]);
 
-  // ✅ UPDATED HR CHECK
+  // ✅ UPDATED HR CHECK - More reliable
   const isHR = session?.user?.email && (
     session.user.email.toLowerCase().includes("@huaxin.com") ||
     session.user.email.toLowerCase().includes("@huaxincem.com") ||
@@ -27,21 +21,13 @@ export default function App() {
     session.user.email === "kudzanai.siame@huaxincem.com"
   );
 
-  // ... rest of your code
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
     loadData();
-
-    return () => listener.subscription.unsubscribe();
   }, []);
 
   async function loadData() {
+    const { supabase } = await import("./supabaseClient");
+    
     const [{ data: jobsData }, { data: appsData }] = await Promise.all([
       supabase.from("jobs").select("*").order("id"),
       supabase.from("applications").select("*").order("created_at", { ascending: false }),
@@ -58,7 +44,7 @@ export default function App() {
         setTab={setTab} 
         session={session} 
         isHR={isHR} 
-        onSignOut={() => supabase.auth.signOut().then(() => setTab("home"))} 
+        onSignOut={() => setTab("home")} 
       />
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
@@ -68,10 +54,7 @@ export default function App() {
             <p style={{ fontSize: "1.4rem", maxWidth: 700, margin: "0 auto 40px" }}>
               Launch your career with Zambia's leading cement manufacturer.
             </p>
-            <button 
-              onClick={() => setTab("apply")}
-              style={primaryBtn}
-            >
+            <button onClick={() => setTab("apply")} style={primaryBtn}>
               Start Your Application
             </button>
           </div>
@@ -82,11 +65,9 @@ export default function App() {
         {tab === "confirmation" && <Confirmation onBack={() => setTab("home")} />}
         {tab === "auth" && <AuthForm setTab={setTab} />}
         
-        {tab === "dashboard" && (session && isHR) && (
-          <Dashboard apps={apps} refreshData={loadData} />
-        )}
-
-        {tab === "dashboard" && (!session || !isHR) && (
+        {tab === "dashboard" && isHR && <Dashboard apps={apps} refreshData={loadData} />}
+        
+        {tab === "dashboard" && !isHR && (
           <div style={{ textAlign: "center", padding: "80px 20px" }}>
             <h2>🔒 Restricted Access</h2>
             <p>This dashboard is only for authorized HR staff.</p>
