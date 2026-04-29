@@ -19,11 +19,15 @@ export default function App() {
   const [apps, setApps] = useState([]);
   const [jobs, setJobs] = useState([]);
 
+  // ✅ UPDATED HR CHECK
   const isHR = session?.user?.email && (
-  session.user.email.endsWith("@huaxin.com") ||
-  session.user.email.endsWith("@huaxincem.com") ||
-  session.user.email.endsWith("@chilangacement.co.zm")
-);
+    session.user.email.toLowerCase().includes("@huaxin.com") ||
+    session.user.email.toLowerCase().includes("@huaxincem.com") ||
+    session.user.email.toLowerCase().includes("@chilangacement.co.zm") ||
+    session.user.email === "kudzanai.siame@huaxincem.com"
+  );
+
+  // ... rest of your code
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
