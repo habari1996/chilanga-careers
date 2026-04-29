@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function Navbar({ tab, setTab, session, isHR, onSignOut }) {
   const btnStyle = { padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontWeight: 500 };
   const primary = { ...btnStyle, background: "#f59e0b", color: "white", border: "none" };
@@ -14,9 +16,7 @@ export default function Navbar({ tab, setTab, session, isHR, onSignOut }) {
           <button onClick={() => setTab("apply")} style={primary}>Apply Now</button>
 
           {!session && <button onClick={() => setTab("auth")} style={ghost}>HR Login</button>}
-
           {session && isHR && <button onClick={() => setTab("dashboard")} style={ghost}>Dashboard</button>}
-
           {session && <button onClick={onSignOut} style={ghost}>Logout</button>}
         </div>
       </div>
