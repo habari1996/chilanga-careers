@@ -1,12 +1,4 @@
-Yes, you are definitely using **Supabase** as your database. 
 
-I can tell because your code imports `createClient` from `@supabase/supabase-js` and initializes it with a specific Supabase URL (`wpynkjowoosxcegtvzvq.supabase.co`).
-
-I have updated your code below to fix the **`available_date`** error by aligning the frontend state and input names with your actual database column name (**`start_date`**). I also cleaned up the `submitApplication` logic to ensure the payload is clean.
-
-### Updated App.js
-
-```javascript
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -425,4 +417,4 @@ export default function App() {
     </div>
   );
 }
-```
+
