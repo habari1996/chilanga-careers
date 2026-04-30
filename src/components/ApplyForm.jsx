@@ -17,6 +17,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     graduation_year: "",
     skills: "",
     experience: "",
+    start_date: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -106,7 +107,13 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       const file = document.getElementById("cvFile")?.files[0];
       const cv_url = file ? await uploadCV(file) : null;
 
-      const payload = { ...form, cv_url, status: "New", score: 0, dob: form.dob || null };
+      const payload = { 
+        ...form, 
+        cv_url, 
+        status: "New", 
+        score: 0,
+        dob: form.dob || null 
+      };
 
       const { error } = await supabase.from("applications").insert([payload]);
       if (error) throw error;
@@ -117,7 +124,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       setForm({
         full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "",
         gender: "", nationality: "Zambian", qualification: "", institution: "",
-        field_of_study: "", graduation_year: "", skills: "", experience: ""
+        field_of_study: "", graduation_year: "", skills: "", experience: "", start_date: ""
       });
       setAgreed(false);
       document.getElementById("cvFile").value = "";
