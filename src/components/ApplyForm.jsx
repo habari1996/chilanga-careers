@@ -44,7 +44,10 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     "Accounting", "Finance", "Marketing", "Human Resource Management", "Other"
   ];
 
-  const commonSkills = ["AutoCAD", "Microsoft Excel", "Project Management", "Python", "Data Analysis", "MATLAB", "SolidWorks", "SAP", "Power BI", "SQL", "Leadership", "Communication"];
+  const commonSkills = [
+    "AutoCAD", "Microsoft Excel", "Project Management", "Python", "Data Analysis",
+    "MATLAB", "SolidWorks", "SAP", "Power BI", "SQL", "Leadership", "Communication"
+  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,7 +84,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
 
   const submitApplication = async () => {
     if (!form.full_name || !form.email || !form.phone || !form.qualification || !form.institution) {
-      alert("Please fill all required fields marked with *");
+      alert("Please fill all required fields (*)");
       return;
     }
     if (!agreed) {
@@ -176,6 +179,23 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </select>
         </div>
 
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginTop: "24px" }}>
+          <div>
+            <label style={label}>Field of Study</label>
+            <select name="field_of_study" style={input} value={form.field_of_study} onChange={handleChange}>
+              <option value="">Select Field of Study</option>
+              {fieldsOfStudy.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={label}>Graduation Year</label>
+            <select name="graduation_year" style={input} value={form.graduation_year} onChange={handleChange}>
+              <option value="">Select Year</option>
+              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+
         <div style={{ marginTop: "28px" }}>
           <label style={label}>Key Skills</label>
           <input name="skills" style={input} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
@@ -206,6 +226,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   );
 }
 
+// Styles
 const label = { display: "block", marginBottom: "8px", fontWeight: "600", color: "#374151" };
 const input = { width: "100%", padding: "14px 16px", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "15px" };
 const skillBtn = { padding: "6px 14px", fontSize: "13px", border: "1px solid #e2e8f0", borderRadius: "9999px", background: "#f8fafc", cursor: "pointer" };
