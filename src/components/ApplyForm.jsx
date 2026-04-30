@@ -3,34 +3,135 @@ import { supabase } from "../supabaseClient";
 
 export default function ApplyForm({ onSuccess, refreshData }) {
   const [form, setForm] = useState({
-    full_name: "", email: "", phone: "", qualification: "",
-    institution: "", skills: "", start_date: ""
+    full_name: "",
+    email: "",
+    phone: "",
+    alt_phone: "",
+    dob: "",
+    age: "",
+    gender: "",
+    nationality: "Zambian",
+    qualification: "",
+    institution: "",
+    field_of_study: "",
+    graduation_year: "",
+    skills: "",
+    experience: "",
+    start_date: "",
   });
+
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
+  // Comprehensive List of Zambian Universities & Colleges (35+ entries)
+  const institutions = [
+    "University of Zambia (UNZA)",
+    "Copperbelt University (CBU)",
+    "Mulungushi University",
+    "University of Lusaka (UNILUS)",
+    "Zambia Open University (ZAOU)",
+    "Kwame Nkrumah University",
+    "Mukuba University",
+    "Chalimbana University",
+    "Levy Mwanawasa Medical University",
+    "ZCAS University",
+    "Cavendish University Zambia",
+    "Eden University",
+    "Lusaka Apex Medical University",
+    "Northrise University",
+    "Copperstone University",
+    "Rusangu University",
+    "Chreso University",
+    "Zambia Catholic University",
+    "Africa Christian University",
+    "Gideon Robert University",
+    "DMI-St. Eugene University",
+    "DMI-St. John the Baptist University",
+    "St. Bonaventure University",
+    "The University of Barotseland",
+    "Zambia Adventist University",
+    "Livingstone International University",
+    "Evelyn Hone College",
+    "Northern Technical College (NORTEC)",
+    "Southern Technical College",
+    "David Livingstone College of Education",
+    "Kitwe College of Education",
+    "Lusaka Vocational Training Centre",
+    "Luanshya Technical and Business College",
+    "Mansa College of Education",
+    "Other (Please Specify)"
+  ];
+
+  const qualifications = [
+    "Grade 12 Certificate",
+    "Certificate",
+    "Diploma",
+    "Advanced Diploma",
+    "Bachelor's Degree",
+    "Bachelor of Engineering",
+    "Bachelor of Science",
+    "Bachelor of Commerce",
+    "Bachelor of Business Administration",
+    "Bachelor of Laws (LLB)",
+    "Bachelor of Medicine & Surgery",
+    "Master's Degree",
+    "Doctorate (PhD)",
+    "Other"
+  ];
+
+  const commonSkills = [
+    "AutoCAD", "Microsoft Excel", "Project Management", "Python", "Data Analysis",
+    "MATLAB", "SolidWorks", "SAP", "Power BI", "SQL", "Leadership", "Communication",
+    "Microsoft Office", "Accounting", "Marketing", "Human Resources Management"
+  ];
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+
+    if (name === "dob") {
+      const birthDate = new Date(value);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+      setForm(prev => ({ ...prev, age: age.toString() }));
+    }
+  };
+
+  const addSkill = (skill) => {
+    const current = form.skills ? form.skills.split(", ").filter(Boolean) : [];
+    if (!current.includes(skill)) {
+      setForm(prev => ({
+        ...prev,
+        skills: [...current, skill].join(", ")
+      }));
+    }
+  };
+
+  const uploadCV = async (file) => {
+    if (!file) return null;
+    const fileName = `cvs/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from("cvs").upload(fileName, file);
+    if (error) throw error;
+    const { data } = supabase.storage.from("cvs").getPublicUrl(fileName);
+    return data.publicUrl;
   };
 
   const submitApplication = async () => {
-    if (!form.full_name || !form.email || !form.phone) {
-      alert("Please fill in Full Name, Email and Phone");
+    if (!form.full_name || !form.email || !form.phone || !form.qualification || !form.institution) {
+      alert("Please fill all required fields (*)");
+      return;
+    }
+    if (!agreed) {
+      alert("You must agree to the terms and conditions");
       return;
     }
 
     setLoading(true);
     try {
       const file = document.getElementById("cvFile")?.files[0];
-      let cv_url = null;
-
-      if (file) {
-        const fileName = `cvs/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("cvs").upload(fileName, file);
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage.from("cvs").getPublicUrl(fileName);
-        cv_url = data.publicUrl;
-      }
+      const cv_url = file ? await uploadCV(file) : null;
 
       const payload = { ...form, cv_url, status: "New", score: 0 };
 
@@ -39,61 +140,127 @@ export default function ApplyForm({ onSuccess, refreshData }) {
 
       alert("✅ Application submitted successfully!");
       onSuccess();
-      if (refreshData) refreshData();
 
       // Reset form
-      setForm({ full_name: "", email: "", phone: "", qualification: "", institution: "", skills: "", start_date: "" });
+      setForm({
+        full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "",
+        gender: "", nationality: "Zambian", qualification: "", institution: "",
+        field_of_study: "", graduation_year: "", skills: "", experience: "", start_date: ""
+      });
+      setAgreed(false);
       document.getElementById("cvFile").value = "";
     } catch (err) {
-      alert("Error: " + err.message);
+      alert("Submission failed: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 700, margin: "40px auto" }}>
-      <div style={{ background: "white", padding: 32, borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
-        <h2>Graduate Trainee Application — Step Up Program 2026</h2>
+    <div style={{ maxWidth: 800, margin: "40px auto", padding: "0 16px" }}>
+      <div style={{ background: "white", padding: 40, borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
+        <h2 style={{ textAlign: "center", marginBottom: 30 }}>Graduate Trainee Application — Step Up Program 2026</h2>
 
-        <input name="full_name" placeholder="Full Name *" style={inputStyle} onChange={handleChange} value={form.full_name} />
-        <input name="email" type="email" placeholder="Email Address *" style={inputStyle} onChange={handleChange} value={form.email} />
-        <input name="phone" placeholder="Phone Number *" style={inputStyle} onChange={handleChange} value={form.phone} />
-        <input name="qualification" placeholder="Highest Qualification" style={inputStyle} onChange={handleChange} value={form.qualification} />
-        <input name="institution" placeholder="Institution / University" style={inputStyle} onChange={handleChange} value={form.institution} />
-        <input name="skills" placeholder="Skills (e.g. AutoCAD, Excel, Python)" style={inputStyle} onChange={handleChange} value={form.skills} />
-        <input name="start_date" type="date" style={inputStyle} onChange={handleChange} value={form.start_date} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div>
+            <label style={labelStyle}>Full Name *</label>
+            <input name="full_name" required style={inputStyle} value={form.full_name} onChange={handleChange} />
+          </div>
+          <div>
+            <label style={labelStyle}>Email Address *</label>
+            <input name="email" type="email" required style={inputStyle} value={form.email} onChange={handleChange} />
+          </div>
+          <div>
+            <label style={labelStyle}>Phone Number *</label>
+            <input name="phone" required style={inputStyle} value={form.phone} onChange={handleChange} placeholder="+260 97 123 4567" />
+          </div>
+          <div>
+            <label style={labelStyle}>Alternative Phone</label>
+            <input name="alt_phone" style={inputStyle} value={form.alt_phone} onChange={handleChange} />
+          </div>
+        </div>
 
-        <label style={{ display: "block", margin: "15px 0 8px", fontWeight: 600 }}>
-          Upload CV (PDF or Word)
-        </label>
-        <input id="cvFile" type="file" accept=".pdf,.doc,.docx" style={inputStyle} />
+        <div style={{ marginTop: 25 }}>
+          <label style={labelStyle}>Highest Qualification *</label>
+          <select name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
+            <option value="">Select Qualification</option>
+            {qualifications.map((q, i) => (
+              <option key={i} value={q}>{q}</option>
+            ))}
+          </select>
+        </div>
 
-        <button onClick={submitApplication} disabled={loading} style={submitBtn}>
-          {loading ? "Submitting..." : "Submit Application"}
+        <div style={{ marginTop: 20 }}>
+          <label style={labelStyle}>Institution / University *</label>
+          <select name="institution" required style={inputStyle} value={form.institution} onChange={handleChange}>
+            <option value="">Select Institution</option>
+            {institutions.map((inst, i) => (
+              <option key={i} value={inst}>{inst}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <label style={labelStyle}>Key Skills</label>
+          <input 
+            name="skills" 
+            style={inputStyle} 
+            value={form.skills} 
+            onChange={(e) => setForm(prev => ({ ...prev, skills: e.target.value }))} 
+            placeholder="e.g. AutoCAD, Excel, Python"
+          />
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {commonSkills.map(skill => (
+              <button 
+                key={skill} 
+                type="button"
+                onClick={() => addSkill(skill)}
+                style={skillBtn}
+              >
+                + {skill}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 25 }}>
+          <label style={labelStyle}>Upload CV (PDF or Word) *</label>
+          <input id="cvFile" type="file" accept=".pdf,.doc,.docx" style={inputStyle} />
+        </div>
+
+        <div style={{ marginTop: 30 }}>
+          <label>
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+            <span style={{ marginLeft: 8 }}>
+              I confirm that the information provided is accurate and I agree to the Terms &amp; Conditions and Privacy Policy.
+            </span>
+          </label>
+        </div>
+
+        <button 
+          onClick={submitApplication} 
+          disabled={loading || !agreed}
+          style={submitBtn}
+        >
+          {loading ? "Submitting Application..." : "Submit Application"}
         </button>
       </div>
     </div>
   );
 }
 
-const inputStyle = { 
-  width: "100%", 
-  padding: "12px", 
-  marginBottom: 14, 
-  border: "1px solid #cbd5e1", 
-  borderRadius: 10,
-  fontSize: "15px"
-};
-
+const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, color: "#374151" };
+const inputStyle = { width: "100%", padding: "14px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "15px" };
+const skillBtn = { padding: "6px 12px", fontSize: "13px", border: "1px solid #ddd", borderRadius: 20, background: "#f8fafc", cursor: "pointer" };
 const submitBtn = { 
   width: "100%", 
-  padding: "14px", 
+  padding: "16px", 
+  marginTop: 30, 
   background: "#f59e0b", 
   color: "white", 
   border: "none", 
-  borderRadius: 10, 
+  borderRadius: 12, 
+  fontSize: "17px", 
   fontWeight: 600, 
-  cursor: "pointer",
-  fontSize: "16px"
+  cursor: "pointer" 
 };
