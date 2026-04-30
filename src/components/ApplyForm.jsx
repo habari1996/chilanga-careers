@@ -13,70 +13,40 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     nationality: "Zambian",
     qualification: "",
     institution: "",
-    field_of_study: "",
-    graduation_year: "",
+    field_of_study: "",        // New
+    graduation_year: "",       // New
     skills: "",
-    experience: "",
+    experience: "",            // New
     start_date: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
-  // Comprehensive List of Zambian Universities & Colleges (35+ entries)
+  // Comprehensive Zambian Institutions
   const institutions = [
-    "University of Zambia (UNZA)",
-    "Copperbelt University (CBU)",
-    "Mulungushi University",
-    "University of Lusaka (UNILUS)",
-    "Zambia Open University (ZAOU)",
-    "Kwame Nkrumah University",
-    "Mukuba University",
-    "Chalimbana University",
-    "Levy Mwanawasa Medical University",
-    "ZCAS University",
-    "Cavendish University Zambia",
-    "Eden University",
-    "Lusaka Apex Medical University",
-    "Northrise University",
-    "Copperstone University",
-    "Rusangu University",
-    "Chreso University",
-    "Zambia Catholic University",
-    "Africa Christian University",
-    "Gideon Robert University",
-    "DMI-St. Eugene University",
-    "DMI-St. John the Baptist University",
-    "St. Bonaventure University",
-    "The University of Barotseland",
-    "Zambia Adventist University",
-    "Livingstone International University",
-    "Evelyn Hone College",
-    "Northern Technical College (NORTEC)",
-    "Southern Technical College",
-    "David Livingstone College of Education",
-    "Kitwe College of Education",
-    "Lusaka Vocational Training Centre",
-    "Luanshya Technical and Business College",
-    "Mansa College of Education",
+    "University of Zambia (UNZA)", "Copperbelt University (CBU)", "Mulungushi University",
+    "University of Lusaka (UNILUS)", "Zambia Open University (ZAOU)", "Kwame Nkrumah University",
+    "Mukuba University", "Chalimbana University", "Levy Mwanawasa Medical University",
+    "ZCAS University", "Cavendish University Zambia", "Eden University",
+    "Lusaka Apex Medical University", "Northrise University", "Copperstone University",
+    "Rusangu University", "Chreso University", "Zambia Catholic University",
+    "Africa Christian University", "Gideon Robert University", "DMI-St. Eugene University",
+    "DMI-St. John the Baptist University", "St. Bonaventure University",
+    "The University of Barotseland", "Zambia Adventist University",
+    "Livingstone International University", "Evelyn Hone College",
+    "Northern Technical College (NORTEC)", "Southern Technical College",
+    "David Livingstone College of Education", "Kitwe College of Education",
+    "Luanshya Technical and Business College", "Mansa College of Education",
     "Other (Please Specify)"
   ];
 
   const qualifications = [
-    "Grade 12 Certificate",
-    "Certificate",
-    "Diploma",
-    "Advanced Diploma",
-    "Bachelor's Degree",
-    "Bachelor of Engineering",
-    "Bachelor of Science",
-    "Bachelor of Commerce",
-    "Bachelor of Business Administration",
-    "Bachelor of Laws (LLB)",
-    "Bachelor of Medicine & Surgery",
-    "Master's Degree",
-    "Doctorate (PhD)",
-    "Other"
+    "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
+    "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science",
+    "Bachelor of Commerce", "Bachelor of Business Administration",
+    "Bachelor of Laws (LLB)", "Bachelor of Medicine & Surgery",
+    "Master's Degree", "Doctorate (PhD)", "Other"
   ];
 
   const commonSkills = [
@@ -172,7 +142,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </div>
           <div>
             <label style={labelStyle}>Phone Number *</label>
-            <input name="phone" required style={inputStyle} value={form.phone} onChange={handleChange} placeholder="+260 97 123 4567" />
+            <input name="phone" required style={inputStyle} value={form.phone} onChange={handleChange} />
           </div>
           <div>
             <label style={labelStyle}>Alternative Phone</label>
@@ -184,9 +154,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           <label style={labelStyle}>Highest Qualification *</label>
           <select name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
             <option value="">Select Qualification</option>
-            {qualifications.map((q, i) => (
-              <option key={i} value={q}>{q}</option>
-            ))}
+            {qualifications.map((q, i) => <option key={i} value={q}>{q}</option>)}
           </select>
         </div>
 
@@ -194,10 +162,30 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           <label style={labelStyle}>Institution / University *</label>
           <select name="institution" required style={inputStyle} value={form.institution} onChange={handleChange}>
             <option value="">Select Institution</option>
-            {institutions.map((inst, i) => (
-              <option key={i} value={inst}>{inst}</option>
-            ))}
+            {institutions.map((inst, i) => <option key={i} value={inst}>{inst}</option>)}
           </select>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
+          <div>
+            <label style={labelStyle}>Field of Study</label>
+            <input name="field_of_study" style={inputStyle} value={form.field_of_study} onChange={handleChange} placeholder="e.g. Mechanical Engineering" />
+          </div>
+          <div>
+            <label style={labelStyle}>Graduation Year</label>
+            <input name="graduation_year" style={inputStyle} value={form.graduation_year} onChange={handleChange} placeholder="2025" />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <label style={labelStyle}>Work Experience (if any)</label>
+          <textarea 
+            name="experience" 
+            style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }} 
+            value={form.experience} 
+            onChange={handleChange} 
+            placeholder="e.g. 2 years internship at ... or None"
+          />
         </div>
 
         <div style={{ marginTop: 20 }}>
@@ -207,16 +195,11 @@ export default function ApplyForm({ onSuccess, refreshData }) {
             style={inputStyle} 
             value={form.skills} 
             onChange={(e) => setForm(prev => ({ ...prev, skills: e.target.value }))} 
-            placeholder="e.g. AutoCAD, Excel, Python"
+            placeholder="AutoCAD, Excel, Python, etc."
           />
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {commonSkills.map(skill => (
-              <button 
-                key={skill} 
-                type="button"
-                onClick={() => addSkill(skill)}
-                style={skillBtn}
-              >
+              <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>
                 + {skill}
               </button>
             ))}
@@ -232,7 +215,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           <label>
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
             <span style={{ marginLeft: 8 }}>
-              I confirm that the information provided is accurate and I agree to the Terms &amp; Conditions and Privacy Policy.
+              I confirm that the information provided is accurate and I agree to the Terms &amp; Conditions.
             </span>
           </label>
         </div>
