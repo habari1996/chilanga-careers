@@ -6,6 +6,7 @@ import AuthForm from "./components/AuthForm";
 import Dashboard from "./components/Dashboard";
 import JobList from "./components/JobList";
 import Confirmation from "./components/Confirmation";
+import TrackApplication from "./components/TrackApplication";
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -21,31 +22,19 @@ export default function App() {
   );
 
   useEffect(() => {
-    let listener;
-
-    const initializeAuth = async () => {
+    const initialize = async () => {
       const { supabase } = await import("./supabaseClient");
-
-      // Get current session
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
-      // Listen for auth changes
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
         setSession(newSession);
-        if (event === 'SIGNED_IN' && newSession) {
-          setTab("dashboard");
-        }
+        if (event === 'SIGNED_IN') setTab("dashboard");
       });
-
-      listener = authListener;
     };
 
-    initializeAuth();
-
-    return () => {
-      if (listener) listener.subscription.unsubscribe();
-    };
+    initialize();
+    loadData();
   }, []);
 
   async function loadData() {
@@ -76,9 +65,7 @@ export default function App() {
             <p style={{ fontSize: "1.4rem", maxWidth: 700, margin: "0 auto 40px" }}>
               Launch your career with Zambia's leading cement manufacturer.
             </p>
-            <button onClick={() => setTab("apply")} style={primaryBtn}>
-              Start Your Application
-            </button>
+            <button onClick={() => setTab("apply")} style={primaryBtn}>Start Your Application</button>
           </div>
         )}
 
@@ -86,9 +73,8 @@ export default function App() {
         {tab === "apply" && <ApplyForm onSuccess={() => setTab("confirmation")} refreshData={loadData} />}
         {tab === "confirmation" && <Confirmation onBack={() => setTab("home")} />}
         {tab === "auth" && <AuthForm setTab={setTab} />}
-        
+        {tab === "track" && <TrackApplication />}
         {tab === "dashboard" && isHR && <Dashboard apps={apps} refreshData={loadData} />}
-        
         {tab === "dashboard" && !isHR && (
           <div style={{ textAlign: "center", padding: "100px 20px" }}>
             <h2>🔒 Restricted Access</h2>
