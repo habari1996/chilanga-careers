@@ -7,8 +7,8 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     email: "",
     phone: "",
     alt_phone: "",
-    dob: "",           // ← New
-    age: "",           // ← New (auto calculated)
+    dob: "",
+    age: "",
     gender: "",
     nationality: "Zambian",
     qualification: "",
@@ -23,7 +23,6 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
-  // Lists
   const qualifications = [
     "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
     "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science",
@@ -64,7 +63,6 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
 
-    // Auto calculate age from Date of Birth
     if (name === "dob" && value) {
       const birthDate = new Date(value);
       const today = new Date();
@@ -95,7 +93,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   };
 
   const submitApplication = async () => {
-    if (!form.full_name || !form.email || !form.phone || !form.qualification || !form.institution || !form.dob) {
+    if (!form.full_name || !form.email || !form.phone || !form.qualification || !form.institution) {
       alert("Please fill all required fields (*)");
       return;
     }
@@ -109,7 +107,14 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       const file = document.getElementById("cvFile")?.files[0];
       const cv_url = file ? await uploadCV(file) : null;
 
-      const payload = { ...form, cv_url, status: "New", score: 0 };
+      // Prepare payload - only send dob if filled
+      const payload = { 
+        ...form, 
+        cv_url, 
+        status: "New", 
+        score: 0,
+        dob: form.dob || null   // Important fix
+      };
 
       const { error } = await supabase.from("applications").insert([payload]);
       if (error) throw error;
@@ -158,8 +163,8 @@ export default function ApplyForm({ onSuccess, refreshData }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
           <div>
-            <label style={labelStyle}>Date of Birth *</label>
-            <input name="dob" type="date" required style={inputStyle} value={form.dob} onChange={handleChange} />
+            <label style={labelStyle}>Date of Birth</label>
+            <input name="dob" type="date" style={inputStyle} value={form.dob} onChange={handleChange} />
           </div>
           <div>
             <label style={labelStyle}>Age</label>
@@ -167,7 +172,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </div>
         </div>
 
-        {/* Rest of the form (Qualification, Institution, etc.) */}
+        {/* Rest of your form remains the same */}
         <div style={{ marginTop: 25 }}>
           <label style={labelStyle}>Highest Qualification *</label>
           <select name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
@@ -204,7 +209,6 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </div>
         </div>
 
-        {/* Skills & Experience */}
         <div style={{ marginTop: 20 }}>
           <label style={labelStyle}>Key Skills</label>
           <input name="skills" style={inputStyle} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
@@ -213,11 +217,6 @@ export default function ApplyForm({ onSuccess, refreshData }) {
               <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>+ {skill}</button>
             ))}
           </div>
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <label style={labelStyle}>Work Experience (if any)</label>
-          <textarea name="experience" style={{ ...inputStyle, minHeight: "80px" }} value={form.experience} onChange={handleChange} placeholder="e.g. 1 year internship..." />
         </div>
 
         <div style={{ marginTop: 25 }}>
