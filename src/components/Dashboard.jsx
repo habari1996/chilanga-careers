@@ -6,7 +6,12 @@ export default function Dashboard({ apps, refreshData }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
 
-  // New Job Modal State
+  // Advanced Filters
+  const [ageMin, setAgeMin] = useState("");
+  const [ageMax, setAgeMax] = useState("");
+  const [qualificationFilter, setQualificationFilter] = useState("");
+
+  // New Job Modal
   const [showJobModal, setShowJobModal] = useState(false);
   const [newJob, setNewJob] = useState({
     title: "",
@@ -16,17 +21,30 @@ export default function Dashboard({ apps, refreshData }) {
   });
   const [postingJob, setPostingJob] = useState(false);
 
+  // Filtered Applications
   const filteredApps = useMemo(() => {
     return apps.filter((a) => {
       const matchesSearch =
         (a.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
         (a.email || "").toLowerCase().includes(search.toLowerCase());
-      
+
       const matchesStatus = statusFilter === "All" || a.status === statusFilter;
-      
-      return matchesSearch && matchesStatus;
+
+      // Age Filter
+      let matchesAge = true;
+      if (ageMin || ageMax) {
+        const age = parseInt(a.age) || 0;
+        if (ageMin && age < parseInt(ageMin)) matchesAge = false;
+        if (ageMax && age > parseInt(ageMax)) matchesAge = false;
+      }
+
+      // Qualification Filter
+      const matchesQualification = !qualificationFilter ||
+        (a.qualification || "").toLowerCase().includes(qualificationFilter.toLowerCase());
+
+      return matchesSearch && matchesStatus && matchesAge && matchesQualification;
     });
-  }, [apps, search, statusFilter]);
+  }, [apps, search, statusFilter, ageMin, ageMax, qualificationFilter]);
 
   const updateStatus = async (id, newStatus) => {
     const { error } = await supabase
@@ -35,7 +53,7 @@ export default function Dashboard({ apps, refreshData }) {
       .eq("id", id);
 
     if (error) {
-      alert("Failed to update status: " + error.message);
+      alert("Failed to update: " + error.message);
     } else {
       refreshData();
       if (selectedApplicant?.id === id) {
@@ -44,9 +62,25 @@ export default function Dashboard({ apps, refreshData }) {
     }
   };
 
+  const bulkShortlist = async () => {
+    if (filteredApps.length === 0) {
+      alert("No candidates match your filters");
+      return;
+    }
+    if (!window.confirm(`Shortlist all ${filteredApps.length} filtered candidates?`)) return;
+
+    for (const app of filteredApps) {
+      if (app.status !== "Shortlisted") {
+        await supabase.from("applications").update({ status: "Shortlisted" }).eq("id", app.id);
+      }
+    }
+
+    alert(`✅ ${filteredApps.length} candidates have been shortlisted!`);
+    refreshData();
+  };
+
   const exportCSV = () => {
     const headers = ["Name", "Email", "Phone", "Qualification", "Institution", "Score", "Status", "Applied Date"];
-    
     const rows = filteredApps.map((a) => [
       a.full_name || "",
       a.email || "",
@@ -59,7 +93,6 @@ export default function Dashboard({ apps, refreshData }) {
     ]);
 
     const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-    
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -79,10 +112,7 @@ export default function Dashboard({ apps, refreshData }) {
 
     setPostingJob(true);
     try {
-      const { error } = await supabase
-        .from("jobs")
-        .insert([newJob]);
-
+      const { error } = await supabase.from("jobs").insert([newJob]);
       if (error) throw error;
 
       alert("✅ Job posted successfully!");
@@ -101,37 +131,62 @@ export default function Dashboard({ apps, refreshData }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h2>Recruiter Dashboard</h2>
         <div style={{ display: "flex", gap: 12 }}>
-          <button onClick={() => setShowJobModal(true)} style={addJobBtn}>
-            + Post New Job
-          </button>
+          <button onClick={() => setShowJobModal(true)} style={addJobBtn}>+ Post New Job</button>
           <button onClick={exportCSV} style={primaryBtn}>Export CSV</button>
         </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Search applicants by name or email..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={searchInput}
-      />
+      {/* Advanced Filters */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
+        <input
+          placeholder="Search by name or email"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={inputStyle}
+        />
+        <input
+          type="number"
+          placeholder="Min Age"
+          value={ageMin}
+          onChange={(e) => setAgeMin(e.target.value)}
+          style={inputStyle}
+        />
+        <input
+          type="number"
+          placeholder="Max Age"
+          value={ageMax}
+          onChange={(e) => setAgeMax(e.target.value)}
+          style={inputStyle}
+        />
+        <input
+          placeholder="Qualification (e.g. Bachelor)"
+          value={qualificationFilter}
+          onChange={(e) => setQualificationFilter(e.target.value)}
+          style={inputStyle}
+        />
+        <button onClick={bulkShortlist} style={bulkShortlistBtn}>
+          Shortlist Filtered ({filteredApps.length})
+        </button>
+      </div>
 
-      <div style={{ margin: "20px 0 30px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {["All", "New", "Shortlisted", "Rejected", "Hired"].map((status) => (
+      {/* Status Filters */}
+      <div style={{ marginBottom: 25, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {["All", "New", "Shortlisted", "Rejected", "Hired"].map((st) => (
           <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
+            key={st}
+            onClick={() => setStatusFilter(st)}
             style={{
               ...filterBtn,
-              background: statusFilter === status ? "#0f172a" : "white",
-              color: statusFilter === status ? "white" : "#000",
+              background: statusFilter === st ? "#0f172a" : "#fff",
+              color: statusFilter === st ? "#fff" : "#000"
             }}
           >
-            {status} ({apps.filter(a => status === "All" || a.status === status).length})
+            {st}
           </button>
         ))}
       </div>
 
+      {/* Applicants Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
         {filteredApps.map((app) => (
           <div
@@ -140,22 +195,15 @@ export default function Dashboard({ apps, refreshData }) {
             style={applicantCard}
           >
             <strong>{app.full_name}</strong>
-            <p style={{ margin: "6px 0", color: "#555", fontSize: "14px" }}>{app.email}</p>
-            <p>Score: <strong>{app.score || 0}%</strong></p>
-            <span style={{
-              ...statusBadge,
-              backgroundColor: 
-                app.status === "Hired" ? "#dcfce7" : 
-                app.status === "Rejected" ? "#fee2e2" : 
-                app.status === "Shortlisted" ? "#dbeafe" : "#f3f4f6"
-            }}>
-              {app.status || "New"}
-            </span>
+            <p style={{ margin: "4px 0", color: "#666" }}>{app.email}</p>
+            <p>Age: {app.age || "—"} | Score: <strong>{app.score || 0}%</strong></p>
+            <p style={{ fontSize: "14px", color: "#444" }}>{app.qualification}</p>
+            <span style={getStatusStyle(app.status)}>{app.status || "New"}</span>
           </div>
         ))}
       </div>
 
-      {/* Applicant Detail Sidebar */}
+      {/* Candidate Detail Sidebar */}
       {selectedApplicant && (
         <div style={sidebarStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -164,10 +212,11 @@ export default function Dashboard({ apps, refreshData }) {
           </div>
 
           <div style={detailCard}>
-            <h4>Personal Details</h4>
+            <h4>Personal Information</h4>
             <p><strong>Name:</strong> {selectedApplicant.full_name}</p>
             <p><strong>Email:</strong> {selectedApplicant.email}</p>
             <p><strong>Phone:</strong> {selectedApplicant.phone || "—"}</p>
+            <p><strong>Age:</strong> {selectedApplicant.age || "—"}</p>
           </div>
 
           <div style={detailCard}>
@@ -177,7 +226,7 @@ export default function Dashboard({ apps, refreshData }) {
           </div>
 
           <div style={detailCard}>
-            <h4>Skills & Score</h4>
+            <h4>Skills &amp; Score</h4>
             <p><strong>Skills:</strong> {selectedApplicant.skills || "—"}</p>
             <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
           </div>
@@ -195,40 +244,16 @@ export default function Dashboard({ apps, refreshData }) {
         <div style={modalOverlay}>
           <div style={modalContent}>
             <h3>Post New Job Opening</h3>
-            
-            <input
-              name="title"
-              placeholder="Job Title *"
-              style={inputStyle}
-              value={newJob.title}
-              onChange={handleJobChange}
-            />
-            <input
-              name="location"
-              placeholder="Location (e.g. Lusaka, Kitwe)"
-              style={inputStyle}
-              value={newJob.location}
-              onChange={handleJobChange}
-            />
-            <input
-              name="department"
-              placeholder="Department (e.g. Engineering, Operations)"
-              style={inputStyle}
-              value={newJob.department}
-              onChange={handleJobChange}
-            />
-            <textarea
-              name="description"
-              placeholder="Full Job Description *"
-              style={{ ...inputStyle, minHeight: "140px", resize: "vertical" }}
-              value={newJob.description}
-              onChange={handleJobChange}
-            />
+
+            <input name="title" placeholder="Job Title *" style={inputStyle} value={newJob.title} onChange={handleJobChange} />
+            <input name="location" placeholder="Location" style={inputStyle} value={newJob.location} onChange={handleJobChange} />
+            <input name="department" placeholder="Department" style={inputStyle} value={newJob.department} onChange={handleJobChange} />
+            <textarea name="description" placeholder="Job Description *" style={{ ...inputStyle, minHeight: "140px" }} value={newJob.description} onChange={handleJobChange} />
 
             <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
               <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
               <button onClick={postNewJob} disabled={postingJob} style={primaryBtn}>
-                {postingJob ? "Posting Job..." : "Post Job"}
+                {postingJob ? "Posting..." : "Post Job"}
               </button>
             </div>
           </div>
@@ -238,128 +263,28 @@ export default function Dashboard({ apps, refreshData }) {
   );
 }
 
-// ====================== STYLES ======================
-const primaryBtn = { 
-  padding: "10px 20px", 
-  background: "#f59e0b", 
-  color: "white", 
-  border: "none", 
-  borderRadius: 10, 
-  cursor: "pointer", 
-  fontWeight: 600 
-};
+// ==================== STYLES ====================
+const primaryBtn = { padding: "10px 20px", background: "#f59e0b", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
+const addJobBtn = { padding: "10px 20px", background: "#10b981", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
+const bulkShortlistBtn = { padding: "10px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
+const ghostBtn = { padding: "10px 20px", border: "1px solid #cbd5e1", background: "white", borderRadius: 10, cursor: "pointer" };
+const cancelBtn = { padding: "10px 20px", background: "#fff", border: "1px solid #ccc", borderRadius: 10, cursor: "pointer" };
+const inputStyle = { width: "100%", padding: "12px", marginBottom: 12, border: "1px solid #cbd5e1", borderRadius: 10 };
 
-const addJobBtn = { 
-  padding: "10px 20px", 
-  background: "#10b981", 
-  color: "white", 
-  border: "none", 
-  borderRadius: 10, 
-  cursor: "pointer", 
-  fontWeight: 600 
-};
+const applicantCard = { background: "white", padding: 20, borderRadius: 12, boxShadow: "0 4px 15px rgba(0,0,0,0.06)", cursor: "pointer" };
+const filterBtn = { padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", cursor: "pointer" };
 
-const ghostBtn = { 
-  padding: "10px 20px", 
-  border: "1px solid #cbd5e1", 
-  background: "white", 
-  borderRadius: 10, 
-  cursor: "pointer" 
-};
+const sidebarStyle = { position: "fixed", top: 0, right: 0, width: 420, height: "100vh", background: "white", boxShadow: "-8px 0 30px rgba(0,0,0,0.2)", padding: 24, overflowY: "auto", zIndex: 1000 };
+const detailCard = { background: "#f8fafc", padding: 20, borderRadius: 12, marginBottom: 16 };
+const closeBtn = { padding: "8px 16px", background: "none", border: "1px solid #ccc", borderRadius: 8, cursor: "pointer" };
 
-const cancelBtn = { 
-  padding: "10px 20px", 
-  background: "#fff", 
-  border: "1px solid #ccc", 
-  borderRadius: 10, 
-  cursor: "pointer" 
-};
+const modalOverlay = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 };
+const modalContent = { background: "white", padding: 32, borderRadius: 16, width: "90%", maxWidth: 500, boxShadow: "0 20px 40px rgba(0,0,0,0.25)" };
 
-const searchInput = { 
-  width: "100%", 
-  padding: "14px", 
-  border: "1px solid #cbd5e1", 
-  borderRadius: 10, 
-  fontSize: "16px", 
-  marginBottom: 20 
-};
-
-const filterBtn = { 
-  padding: "8px 16px", 
-  borderRadius: 8, 
-  border: "1px solid #cbd5e1", 
-  cursor: "pointer" 
-};
-
-const applicantCard = { 
-  background: "white", 
-  padding: 20, 
-  borderRadius: 12, 
-  boxShadow: "0 4px 15px rgba(0,0,0,0.06)", 
-  cursor: "pointer" 
-};
-
-const statusBadge = { 
-  padding: "4px 12px", 
-  borderRadius: 999, 
-  fontSize: "13px", 
-  fontWeight: 500 
-};
-
-const sidebarStyle = { 
-  position: "fixed", 
-  top: 0, 
-  right: 0, 
-  width: 420, 
-  height: "100vh", 
-  background: "white", 
-  boxShadow: "-8px 0 30px rgba(0,0,0,0.2)", 
-  padding: 24, 
-  overflowY: "auto", 
-  zIndex: 1000 
-};
-
-const detailCard = { 
-  background: "#f8fafc", 
-  padding: 20, 
-  borderRadius: 12, 
-  marginBottom: 16 
-};
-
-const closeBtn = { 
-  padding: "8px 16px", 
-  background: "none", 
-  border: "1px solid #ccc", 
-  borderRadius: 8, 
-  cursor: "pointer" 
-};
-
-const modalOverlay = {
-  position: "fixed", 
-  top: 0, 
-  left: 0, 
-  right: 0, 
-  bottom: 0, 
-  background: "rgba(0,0,0,0.7)", 
-  display: "flex", 
-  alignItems: "center", 
-  justifyContent: "center", 
-  zIndex: 2000 
-};
-
-const modalContent = {
-  background: "white", 
-  padding: 32, 
-  borderRadius: 16, 
-  width: "90%", 
-  maxWidth: 500, 
-  boxShadow: "0 20px 40px rgba(0,0,0,0.25)" 
-};
-
-const inputStyle = { 
-  width: "100%", 
-  padding: "12px", 
-  marginBottom: 12, 
-  border: "1px solid #cbd5e1", 
-  borderRadius: 10 
-};
+const getStatusStyle = (status) => ({
+  padding: "4px 12px",
+  borderRadius: 20,
+  fontSize: "13px",
+  fontWeight: 500,
+  backgroundColor: status === "Hired" ? "#dcfce7" : status === "Rejected" ? "#fee2e2" : status === "Shortlisted" ? "#dbeafe" : "#f3f4f6"
+});
