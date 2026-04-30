@@ -7,8 +7,8 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     email: "",
     phone: "",
     alt_phone: "",
-    dob: "",
-    age: "",
+    dob: "",           // ← New
+    age: "",           // ← New (auto calculated)
     gender: "",
     nationality: "Zambian",
     qualification: "",
@@ -23,7 +23,15 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
-  // Comprehensive Zambian Institutions
+  // Lists
+  const qualifications = [
+    "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
+    "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science",
+    "Bachelor of Commerce", "Bachelor of Business Administration",
+    "Bachelor of Laws (LLB)", "Bachelor of Medicine & Surgery",
+    "Master's Degree", "Doctorate (PhD)", "Other"
+  ];
+
   const institutions = [
     "University of Zambia (UNZA)", "Copperbelt University (CBU)", "Mulungushi University",
     "University of Lusaka (UNILUS)", "Zambia Open University (ZAOU)", "Kwame Nkrumah University",
@@ -41,22 +49,10 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     "Other (Please Specify)"
   ];
 
-  const qualifications = [
-    "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
-    "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science",
-    "Bachelor of Commerce", "Bachelor of Business Administration",
-    "Bachelor of Laws (LLB)", "Bachelor of Medicine & Surgery",
-    "Master's Degree", "Doctorate (PhD)", "Other"
-  ];
-
-  // Field of Study Options
   const fieldsOfStudy = [
-    "Mechanical Engineering", "Electrical Engineering", "Civil Engineering",
-    "Mining Engineering", "Chemical Engineering", "Computer Science",
-    "Information Technology", "Business Administration", "Accounting",
-    "Finance", "Marketing", "Human Resource Management", "Environmental Science",
-    "Geology", "Chemistry", "Physics", "Mathematics", "Education",
-    "Medicine", "Nursing", "Law", "Other"
+    "Mechanical Engineering", "Electrical Engineering", "Civil Engineering", "Mining Engineering",
+    "Chemical Engineering", "Computer Science", "Information Technology", "Business Administration",
+    "Accounting", "Finance", "Marketing", "Human Resource Management", "Other"
   ];
 
   const commonSkills = [
@@ -68,7 +64,8 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
 
-    if (name === "dob") {
+    // Auto calculate age from Date of Birth
+    if (name === "dob" && value) {
       const birthDate = new Date(value);
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
@@ -98,7 +95,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   };
 
   const submitApplication = async () => {
-    if (!form.full_name || !form.email || !form.phone || !form.qualification || !form.institution) {
+    if (!form.full_name || !form.email || !form.phone || !form.qualification || !form.institution || !form.dob) {
       alert("Please fill all required fields (*)");
       return;
     }
@@ -140,7 +137,6 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       <div style={{ background: "white", padding: 40, borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
         <h2 style={{ textAlign: "center", marginBottom: 30 }}>Graduate Trainee Application — Step Up Program 2026</h2>
 
-        {/* Personal Info */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div>
             <label style={labelStyle}>Full Name *</label>
@@ -160,7 +156,18 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </div>
         </div>
 
-        {/* Qualification & Institution */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
+          <div>
+            <label style={labelStyle}>Date of Birth *</label>
+            <input name="dob" type="date" required style={inputStyle} value={form.dob} onChange={handleChange} />
+          </div>
+          <div>
+            <label style={labelStyle}>Age</label>
+            <input name="age" style={inputStyle} value={form.age} readOnly placeholder="Auto calculated" />
+          </div>
+        </div>
+
+        {/* Rest of the form (Qualification, Institution, etc.) */}
         <div style={{ marginTop: 25 }}>
           <label style={labelStyle}>Highest Qualification *</label>
           <select name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
@@ -190,41 +197,27 @@ export default function ApplyForm({ onSuccess, refreshData }) {
             <label style={labelStyle}>Graduation Year</label>
             <select name="graduation_year" style={inputStyle} value={form.graduation_year} onChange={handleChange}>
               <option value="">Select Year</option>
-              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(year => (
-                <option key={year} value={year}>{year}</option>
+              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(y => (
+                <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Experience & Skills */}
+        {/* Skills & Experience */}
         <div style={{ marginTop: 20 }}>
-          <label style={labelStyle}>Work Experience (if any)</label>
-          <textarea 
-            name="experience" 
-            style={{ ...inputStyle, minHeight: "80px" }} 
-            value={form.experience} 
-            onChange={handleChange} 
-            placeholder="e.g. 1 year internship at Company XYZ"
-          />
+          <label style={labelStyle}>Key Skills</label>
+          <input name="skills" style={inputStyle} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {commonSkills.map(skill => (
+              <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>+ {skill}</button>
+            ))}
+          </div>
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <label style={labelStyle}>Key Skills</label>
-          <input 
-            name="skills" 
-            style={inputStyle} 
-            value={form.skills} 
-            onChange={(e) => setForm(prev => ({ ...prev, skills: e.target.value }))} 
-            placeholder="AutoCAD, Excel, Python..."
-          />
-          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {commonSkills.map(skill => (
-              <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>
-                + {skill}
-              </button>
-            ))}
-          </div>
+          <label style={labelStyle}>Work Experience (if any)</label>
+          <textarea name="experience" style={{ ...inputStyle, minHeight: "80px" }} value={form.experience} onChange={handleChange} placeholder="e.g. 1 year internship..." />
         </div>
 
         <div style={{ marginTop: 25 }}>
@@ -235,17 +228,11 @@ export default function ApplyForm({ onSuccess, refreshData }) {
         <div style={{ marginTop: 30 }}>
           <label>
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-            <span style={{ marginLeft: 8 }}>
-              I confirm that the information provided is accurate and I agree to the Terms &amp; Conditions.
-            </span>
+            <span style={{ marginLeft: 8 }}>I confirm that the information provided is accurate and I agree to the Terms & Conditions.</span>
           </label>
         </div>
 
-        <button 
-          onClick={submitApplication} 
-          disabled={loading || !agreed}
-          style={submitBtn}
-        >
+        <button onClick={submitApplication} disabled={loading || !agreed} style={submitBtn}>
           {loading ? "Submitting Application..." : "Submit Application"}
         </button>
       </div>
@@ -253,19 +240,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   );
 }
 
-// Reusable Styles
 const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, color: "#374151" };
 const inputStyle = { width: "100%", padding: "14px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "15px" };
 const skillBtn = { padding: "6px 12px", fontSize: "13px", border: "1px solid #ddd", borderRadius: 20, background: "#f8fafc", cursor: "pointer" };
-const submitBtn = { 
-  width: "100%", 
-  padding: "16px", 
-  marginTop: 30, 
-  background: "#f59e0b", 
-  color: "white", 
-  border: "none", 
-  borderRadius: 12, 
-  fontSize: "17px", 
-  fontWeight: 600, 
-  cursor: "pointer" 
-};
+const submitBtn = { width: "100%", padding: "16px", marginTop: 30, background: "#f59e0b", color: "white", border: "none", borderRadius: 12, fontSize: "17px", fontWeight: 600, cursor: "pointer" };
