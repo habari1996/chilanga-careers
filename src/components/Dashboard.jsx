@@ -21,7 +21,6 @@ export default function Dashboard({ apps, refreshData }) {
   });
   const [postingJob, setPostingJob] = useState(false);
 
-  // Filtered Applications
   const filteredApps = useMemo(() => {
     return apps.filter((a) => {
       const matchesSearch =
@@ -30,7 +29,6 @@ export default function Dashboard({ apps, refreshData }) {
 
       const matchesStatus = statusFilter === "All" || a.status === statusFilter;
 
-      // Age Filter
       let matchesAge = true;
       if (ageMin || ageMax) {
         const age = parseInt(a.age) || 0;
@@ -38,7 +36,6 @@ export default function Dashboard({ apps, refreshData }) {
         if (ageMax && age > parseInt(ageMax)) matchesAge = false;
       }
 
-      // Qualification Filter
       const matchesQualification = !qualificationFilter ||
         (a.qualification || "").toLowerCase().includes(qualificationFilter.toLowerCase());
 
@@ -53,7 +50,7 @@ export default function Dashboard({ apps, refreshData }) {
       .eq("id", id);
 
     if (error) {
-      alert("Failed to update: " + error.message);
+      alert("Failed to update status: " + error.message);
     } else {
       refreshData();
       if (selectedApplicant?.id === id) {
@@ -75,7 +72,7 @@ export default function Dashboard({ apps, refreshData }) {
       }
     }
 
-    alert(`✅ ${filteredApps.length} candidates have been shortlisted!`);
+    alert(`✅ ${filteredApps.length} candidates shortlisted successfully!`);
     refreshData();
   };
 
@@ -136,37 +133,13 @@ export default function Dashboard({ apps, refreshData }) {
         </div>
       </div>
 
-      {/* Advanced Filters */}
+      {/* Filters */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <input
-          placeholder="Search by name or email"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          placeholder="Min Age"
-          value={ageMin}
-          onChange={(e) => setAgeMin(e.target.value)}
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          placeholder="Max Age"
-          value={ageMax}
-          onChange={(e) => setAgeMax(e.target.value)}
-          style={inputStyle}
-        />
-        <input
-          placeholder="Qualification (e.g. Bachelor)"
-          value={qualificationFilter}
-          onChange={(e) => setQualificationFilter(e.target.value)}
-          style={inputStyle}
-        />
-        <button onClick={bulkShortlist} style={bulkShortlistBtn}>
-          Shortlist Filtered ({filteredApps.length})
-        </button>
+        <input placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} style={inputStyle} />
+        <input type="number" placeholder="Min Age" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} style={inputStyle} />
+        <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} style={inputStyle} />
+        <input placeholder="Qualification filter" value={qualificationFilter} onChange={(e) => setQualificationFilter(e.target.value)} style={inputStyle} />
+        <button onClick={bulkShortlist} style={bulkShortlistBtn}>Shortlist Filtered ({filteredApps.length})</button>
       </div>
 
       {/* Status Filters */}
@@ -186,24 +159,20 @@ export default function Dashboard({ apps, refreshData }) {
         ))}
       </div>
 
-      {/* Applicants Grid */}
+      {/* Applicants */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
         {filteredApps.map((app) => (
-          <div
-            key={app.id}
-            onClick={() => setSelectedApplicant(app)}
-            style={applicantCard}
-          >
+          <div key={app.id} onClick={() => setSelectedApplicant(app)} style={applicantCard}>
             <strong>{app.full_name}</strong>
             <p style={{ margin: "4px 0", color: "#666" }}>{app.email}</p>
             <p>Age: {app.age || "—"} | Score: <strong>{app.score || 0}%</strong></p>
-            <p style={{ fontSize: "14px", color: "#444" }}>{app.qualification}</p>
+            <p style={{ fontSize: "14px" }}>{app.qualification}</p>
             <span style={getStatusStyle(app.status)}>{app.status || "New"}</span>
           </div>
         ))}
       </div>
 
-      {/* Candidate Detail Sidebar */}
+      {/* Sidebar */}
       {selectedApplicant && (
         <div style={sidebarStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -212,29 +181,31 @@ export default function Dashboard({ apps, refreshData }) {
           </div>
 
           <div style={detailCard}>
-            <h4>Personal Information</h4>
+            <h4>Personal Details</h4>
             <p><strong>Name:</strong> {selectedApplicant.full_name}</p>
             <p><strong>Email:</strong> {selectedApplicant.email}</p>
-            <p><strong>Phone:</strong> {selectedApplicant.phone || "—"}</p>
-            <p><strong>Age:</strong> {selectedApplicant.age || "—"}</p>
+            <p><strong>Phone:</strong> {selectedApplicant.phone}</p>
+            <p><strong>Age:</strong> {selectedApplicant.age}</p>
           </div>
 
           <div style={detailCard}>
             <h4>Education</h4>
-            <p><strong>Qualification:</strong> {selectedApplicant.qualification || "—"}</p>
-            <p><strong>Institution:</strong> {selectedApplicant.institution || "—"}</p>
+            <p><strong>Qualification:</strong> {selectedApplicant.qualification}</p>
+            <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
+            <p><strong>Field of Study:</strong> {selectedApplicant.field_of_study}</p>
           </div>
 
           <div style={detailCard}>
-            <h4>Skills &amp; Score</h4>
-            <p><strong>Skills:</strong> {selectedApplicant.skills || "—"}</p>
-            <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
+            <h4>Skills & Experience</h4>
+            <p><strong>Skills:</strong> {selectedApplicant.skills}</p>
+            <p><strong>Experience:</strong> {selectedApplicant.experience || "None"}</p>
+            <p><strong>Score:</strong> {selectedApplicant.score}%</p>
           </div>
 
           <div style={{ marginTop: 30, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={ghostBtn}>Shortlist</button>
             <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={ghostBtn}>Reject</button>
-            <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={primaryBtn}>Hire Candidate</button>
+            <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={primaryBtn}>Hire</button>
           </div>
         </div>
       )}
@@ -243,8 +214,7 @@ export default function Dashboard({ apps, refreshData }) {
       {showJobModal && (
         <div style={modalOverlay}>
           <div style={modalContent}>
-            <h3>Post New Job Opening</h3>
-
+            <h3>Post New Job</h3>
             <input name="title" placeholder="Job Title *" style={inputStyle} value={newJob.title} onChange={handleJobChange} />
             <input name="location" placeholder="Location" style={inputStyle} value={newJob.location} onChange={handleJobChange} />
             <input name="department" placeholder="Department" style={inputStyle} value={newJob.department} onChange={handleJobChange} />
@@ -263,7 +233,7 @@ export default function Dashboard({ apps, refreshData }) {
   );
 }
 
-// ==================== STYLES ====================
+// Styles
 const primaryBtn = { padding: "10px 20px", background: "#f59e0b", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
 const addJobBtn = { padding: "10px 20px", background: "#10b981", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
 const bulkShortlistBtn = { padding: "10px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
