@@ -17,7 +17,6 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     graduation_year: "",
     skills: "",
     experience: "",
-    start_date: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -107,14 +106,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       const file = document.getElementById("cvFile")?.files[0];
       const cv_url = file ? await uploadCV(file) : null;
 
-      // Prepare payload - only send dob if filled
-      const payload = { 
-        ...form, 
-        cv_url, 
-        status: "New", 
-        score: 0,
-        dob: form.dob || null   // Important fix
-      };
+      const payload = { ...form, cv_url, status: "New", score: 0, dob: form.dob || null };
 
       const { error } = await supabase.from("applications").insert([payload]);
       if (error) throw error;
@@ -122,11 +114,10 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       alert("✅ Application submitted successfully!");
       onSuccess();
 
-      // Reset form
       setForm({
         full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "",
         gender: "", nationality: "Zambian", qualification: "", institution: "",
-        field_of_study: "", graduation_year: "", skills: "", experience: "", start_date: ""
+        field_of_study: "", graduation_year: "", skills: "", experience: ""
       });
       setAgreed(false);
       document.getElementById("cvFile").value = "";
@@ -144,63 +135,61 @@ export default function ApplyForm({ onSuccess, refreshData }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div>
-            <label style={labelStyle}>Full Name *</label>
-            <input name="full_name" required style={inputStyle} value={form.full_name} onChange={handleChange} />
+            <label htmlFor="full_name" style={labelStyle}>Full Name *</label>
+            <input id="full_name" name="full_name" required style={inputStyle} value={form.full_name} onChange={handleChange} />
           </div>
           <div>
-            <label style={labelStyle}>Email Address *</label>
-            <input name="email" type="email" required style={inputStyle} value={form.email} onChange={handleChange} />
+            <label htmlFor="email" style={labelStyle}>Email Address *</label>
+            <input id="email" name="email" type="email" required style={inputStyle} value={form.email} onChange={handleChange} />
           </div>
           <div>
-            <label style={labelStyle}>Phone Number *</label>
-            <input name="phone" required style={inputStyle} value={form.phone} onChange={handleChange} />
+            <label htmlFor="phone" style={labelStyle}>Phone Number *</label>
+            <input id="phone" name="phone" required style={inputStyle} value={form.phone} onChange={handleChange} />
           </div>
           <div>
-            <label style={labelStyle}>Alternative Phone</label>
-            <input name="alt_phone" style={inputStyle} value={form.alt_phone} onChange={handleChange} />
+            <label htmlFor="alt_phone" style={labelStyle}>Alternative Phone</label>
+            <input id="alt_phone" name="alt_phone" style={inputStyle} value={form.alt_phone} onChange={handleChange} />
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
           <div>
-            <label style={labelStyle}>Date of Birth</label>
-            <input name="dob" type="date" style={inputStyle} value={form.dob} onChange={handleChange} />
+            <label htmlFor="dob" style={labelStyle}>Date of Birth</label>
+            <input id="dob" name="dob" type="date" style={inputStyle} value={form.dob} onChange={handleChange} />
           </div>
           <div>
-            <label style={labelStyle}>Age</label>
-            <input name="age" style={inputStyle} value={form.age} readOnly placeholder="Auto calculated" />
+            <label htmlFor="age" style={labelStyle}>Age</label>
+            <input id="age" name="age" style={inputStyle} value={form.age} readOnly />
           </div>
         </div>
 
-        {/* Rest of your form remains the same */}
         <div style={{ marginTop: 25 }}>
-          <label style={labelStyle}>Highest Qualification *</label>
-          <select name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
+          <label htmlFor="qualification" style={labelStyle}>Highest Qualification *</label>
+          <select id="qualification" name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
             <option value="">Select Qualification</option>
             {qualifications.map((q, i) => <option key={i} value={q}>{q}</option>)}
           </select>
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <label style={labelStyle}>Institution / University *</label>
-          <select name="institution" required style={inputStyle} value={form.institution} onChange={handleChange}>
+          <label htmlFor="institution" style={labelStyle}>Institution / University *</label>
+          <select id="institution" name="institution" required style={inputStyle} value={form.institution} onChange={handleChange}>
             <option value="">Select Institution</option>
             {institutions.map((inst, i) => <option key={i} value={inst}>{inst}</option>)}
           </select>
         </div>
 
-        {/* Field of Study & Graduation Year */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
           <div>
-            <label style={labelStyle}>Field of Study</label>
-            <select name="field_of_study" style={inputStyle} value={form.field_of_study} onChange={handleChange}>
+            <label htmlFor="field_of_study" style={labelStyle}>Field of Study</label>
+            <select id="field_of_study" name="field_of_study" style={inputStyle} value={form.field_of_study} onChange={handleChange}>
               <option value="">Select Field of Study</option>
               {fieldsOfStudy.map((f, i) => <option key={i} value={f}>{f}</option>)}
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Graduation Year</label>
-            <select name="graduation_year" style={inputStyle} value={form.graduation_year} onChange={handleChange}>
+            <label htmlFor="graduation_year" style={labelStyle}>Graduation Year</label>
+            <select id="graduation_year" name="graduation_year" style={inputStyle} value={form.graduation_year} onChange={handleChange}>
               <option value="">Select Year</option>
               {Array.from({ length: 37 }, (_, i) => 2026 - i).map(y => (
                 <option key={y} value={y}>{y}</option>
@@ -210,8 +199,13 @@ export default function ApplyForm({ onSuccess, refreshData }) {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <label style={labelStyle}>Key Skills</label>
-          <input name="skills" style={inputStyle} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
+          <label htmlFor="experience" style={labelStyle}>Work Experience (if any)</label>
+          <textarea id="experience" name="experience" style={{ ...inputStyle, minHeight: "80px" }} value={form.experience} onChange={handleChange} placeholder="e.g. 1 year internship..." />
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <label htmlFor="skills" style={labelStyle}>Key Skills</label>
+          <input id="skills" name="skills" style={inputStyle} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {commonSkills.map(skill => (
               <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>+ {skill}</button>
@@ -220,7 +214,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
         </div>
 
         <div style={{ marginTop: 25 }}>
-          <label style={labelStyle}>Upload CV (PDF or Word) *</label>
+          <label htmlFor="cvFile" style={labelStyle}>Upload CV (PDF or Word) *</label>
           <input id="cvFile" type="file" accept=".pdf,.doc,.docx" style={inputStyle} />
         </div>
 
