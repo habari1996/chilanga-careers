@@ -13,7 +13,6 @@ export default function App() {
   const [apps, setApps] = useState([]);
   const [jobs, setJobs] = useState([]);
 
-  // ✅ Improved HR Check
   const isHR = session?.user?.email && (
     session.user.email.toLowerCase().includes("@huaxin.com") ||
     session.user.email.toLowerCase().includes("@huaxincem.com") ||
@@ -31,9 +30,8 @@ export default function App() {
     checkSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log("Auth Event:", event); // For debugging
       setSession(newSession);
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' && newSession) {
         setTab("dashboard");
       }
     });
@@ -59,15 +57,22 @@ export default function App() {
         setTab={setTab} 
         session={session} 
         isHR={isHR} 
-        onSignOut={() => {
-          const { supabase } = import("./supabaseClient");
-          supabase.auth.signOut();
-          setTab("home");
-        }} 
+        onSignOut={() => setTab("home")} 
       />
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
-        {tab === "home" && ( /* your home content */ )}
+        {tab === "home" && (
+          <div style={{ textAlign: "center", padding: "100px 20px" }}>
+            <h1 style={{ fontSize: "3rem", marginBottom: 16 }}>Chilanga Cement Step Up Program 2026</h1>
+            <p style={{ fontSize: "1.4rem", maxWidth: 700, margin: "0 auto 40px" }}>
+              Launch your career with Zambia's leading cement manufacturer.
+            </p>
+            <button onClick={() => setTab("apply")} style={primaryBtn}>
+              Start Your Application
+            </button>
+          </div>
+        )}
+
         {tab === "jobs" && <JobList jobs={jobs} />}
         {tab === "apply" && <ApplyForm onSuccess={() => setTab("confirmation")} refreshData={loadData} />}
         {tab === "confirmation" && <Confirmation onBack={() => setTab("home")} />}
