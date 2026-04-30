@@ -1,65 +1,116 @@
 import React from "react";
 
 export default function JobList({ jobs }) {
+  if (!jobs || jobs.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "80px 20px" }}>
+        <h2>No Open Positions Right Now</h2>
+        <p style={{ color: "#64748b", marginTop: 12 }}>Check back later for new opportunities.</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: "40px 0" }}>
-      <h2 style={{ marginBottom: 30, textAlign: "center" }}>Open Positions - Step Up Program 2026</h2>
+    <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <h2 style={{ marginBottom: "32px", textAlign: "center" }}>Open Job Positions</h2>
 
-      {jobs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px" }}>
-          <p style={{ fontSize: "18px", color: "#666" }}>No open positions at the moment.</p>
-          <p style={{ color: "#888" }}>Please check back later or contact HR.</p>
-        </div>
-      ) : (
-        <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", 
-          gap: 24 
-        }}>
-          {jobs.map((job) => (
-            <div key={job.id} style={jobCard}>
-              <h3 style={{ marginBottom: 12 }}>{job.title}</h3>
-              
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", 
+        gap: "24px" 
+      }}>
+        {jobs.map((job) => (
+          <div key={job.id} style={jobCard}>
+            <div style={jobHeader}>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "1.35rem" }}>{job.title}</h3>
+              <span style={badge}>{job.job_type || "Full-time"}</span>
+            </div>
+
+            <div style={{ marginBottom: 16, color: "#475569", fontSize: "0.95rem" }}>
               <p><strong>Location:</strong> {job.location || "Lusaka"}</p>
-              <p><strong>Department:</strong> {job.department || "General"}</p>
-              
-              <p style={{ margin: "16px 0", lineHeight: 1.6 }}>
-                {job.description?.length > 180 
-                  ? job.description.substring(0, 180) + "..." 
-                  : job.description}
-              </p>
+              <p><strong>Department:</strong> {job.department}</p>
+              {job.experience_required && <p><strong>Experience:</strong> {job.experience_required}</p>}
+              {job.salary_range && <p><strong>Salary:</strong> {job.salary_range}</p>}
+            </div>
 
+            <p style={{ marginBottom: 16, lineHeight: "1.5", color: "#334155" }}>
+              {job.description?.substring(0, 180)}...
+            </p>
+
+            {job.deadline && (
+              <p style={{ fontSize: "0.9rem", color: "#ef4444", marginBottom: 16 }}>
+                Deadline: {new Date(job.deadline).toLocaleDateString()}
+              </p>
+            )}
+
+            <div style={{ display: "flex", gap: 12 }}>
               <button 
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                onClick={() => window.open(`/apply?job=${job.id}`, "_blank")}
                 style={applyBtn}
               >
                 Apply Now
               </button>
+              <button 
+                onClick={() => alert("Job details coming soon...")}
+                style={detailsBtn}
+              >
+                View Details
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
+// Card Styles
 const jobCard = {
-  background: "white",
-  padding: 28,
-  borderRadius: 16,
-  boxShadow: "0 8px 25px rgba(0,0,0,0.07)",
-  transition: "transform 0.2s, box-shadow 0.2s",
+  background: "#fff",
+  borderRadius: "16px",
+  padding: "24px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+  border: "1px solid #e2e8f0",
+  transition: "transform 0.2s",
+  height: "100%",
+  display: "flex",
+  flexDirection: "column"
+};
+
+const jobHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  marginBottom: "16px"
+};
+
+const badge = {
+  background: "#fef3c7",
+  color: "#92400e",
+  padding: "4px 12px",
+  borderRadius: "9999px",
+  fontSize: "0.85rem",
+  fontWeight: "600"
 };
 
 const applyBtn = {
-  marginTop: 16,
-  padding: "12px 28px",
+  flex: 1,
+  padding: "14px",
   background: "#f59e0b",
   color: "white",
   border: "none",
-  borderRadius: 10,
-  cursor: "pointer",
-  fontWeight: 600,
-  fontSize: "1rem",
-  width: "100%"
+  borderRadius: "12px",
+  fontWeight: "600",
+  cursor: "pointer"
+};
+
+const detailsBtn = {
+  flex: 1,
+  padding: "14px",
+  background: "#fff",
+  color: "#1e40af",
+  border: "1px solid #bfdbfe",
+  borderRadius: "12px",
+  fontWeight: "600",
+  cursor: "pointer"
 };
