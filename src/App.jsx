@@ -21,22 +21,31 @@ export default function App() {
   );
 
   useEffect(() => {
-    const checkSession = async () => {
+    let listener;
+
+    const initializeAuth = async () => {
       const { supabase } = await import("./supabaseClient");
+
+      // Get current session
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
+
+      // Listen for auth changes
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
+        setSession(newSession);
+        if (event === 'SIGNED_IN' && newSession) {
+          setTab("dashboard");
+        }
+      });
+
+      listener = authListener;
     };
 
-    checkSession();
+    initializeAuth();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      if (event === 'SIGNED_IN' && newSession) {
-        setTab("dashboard");
-      }
-    });
-
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      if (listener) listener.subscription.unsubscribe();
+    };
   }, []);
 
   async function loadData() {
