@@ -13,10 +13,10 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     nationality: "Zambian",
     qualification: "",
     institution: "",
-    field_of_study: "",        // New
-    graduation_year: "",       // New
+    field_of_study: "",
+    graduation_year: "",
     skills: "",
-    experience: "",            // New
+    experience: "",
     start_date: "",
   });
 
@@ -49,10 +49,19 @@ export default function ApplyForm({ onSuccess, refreshData }) {
     "Master's Degree", "Doctorate (PhD)", "Other"
   ];
 
+  // Field of Study Options
+  const fieldsOfStudy = [
+    "Mechanical Engineering", "Electrical Engineering", "Civil Engineering",
+    "Mining Engineering", "Chemical Engineering", "Computer Science",
+    "Information Technology", "Business Administration", "Accounting",
+    "Finance", "Marketing", "Human Resource Management", "Environmental Science",
+    "Geology", "Chemistry", "Physics", "Mathematics", "Education",
+    "Medicine", "Nursing", "Law", "Other"
+  ];
+
   const commonSkills = [
     "AutoCAD", "Microsoft Excel", "Project Management", "Python", "Data Analysis",
-    "MATLAB", "SolidWorks", "SAP", "Power BI", "SQL", "Leadership", "Communication",
-    "Microsoft Office", "Accounting", "Marketing", "Human Resources Management"
+    "MATLAB", "SolidWorks", "SAP", "Power BI", "SQL", "Leadership", "Communication"
   ];
 
   const handleChange = (e) => {
@@ -131,6 +140,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
       <div style={{ background: "white", padding: 40, borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
         <h2 style={{ textAlign: "center", marginBottom: 30 }}>Graduate Trainee Application — Step Up Program 2026</h2>
 
+        {/* Personal Info */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div>
             <label style={labelStyle}>Full Name *</label>
@@ -150,6 +160,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </div>
         </div>
 
+        {/* Qualification & Institution */}
         <div style={{ marginTop: 25 }}>
           <label style={labelStyle}>Highest Qualification *</label>
           <select name="qualification" required style={inputStyle} value={form.qualification} onChange={handleChange}>
@@ -166,25 +177,35 @@ export default function ApplyForm({ onSuccess, refreshData }) {
           </select>
         </div>
 
+        {/* Field of Study & Graduation Year */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
           <div>
             <label style={labelStyle}>Field of Study</label>
-            <input name="field_of_study" style={inputStyle} value={form.field_of_study} onChange={handleChange} placeholder="e.g. Mechanical Engineering" />
+            <select name="field_of_study" style={inputStyle} value={form.field_of_study} onChange={handleChange}>
+              <option value="">Select Field of Study</option>
+              {fieldsOfStudy.map((f, i) => <option key={i} value={f}>{f}</option>)}
+            </select>
           </div>
           <div>
             <label style={labelStyle}>Graduation Year</label>
-            <input name="graduation_year" style={inputStyle} value={form.graduation_year} onChange={handleChange} placeholder="2025" />
+            <select name="graduation_year" style={inputStyle} value={form.graduation_year} onChange={handleChange}>
+              <option value="">Select Year</option>
+              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
           </div>
         </div>
 
+        {/* Experience & Skills */}
         <div style={{ marginTop: 20 }}>
           <label style={labelStyle}>Work Experience (if any)</label>
           <textarea 
             name="experience" 
-            style={{ ...inputStyle, minHeight: "80px", resize: "vertical" }} 
+            style={{ ...inputStyle, minHeight: "80px" }} 
             value={form.experience} 
             onChange={handleChange} 
-            placeholder="e.g. 2 years internship at ... or None"
+            placeholder="e.g. 1 year internship at Company XYZ"
           />
         </div>
 
@@ -195,7 +216,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
             style={inputStyle} 
             value={form.skills} 
             onChange={(e) => setForm(prev => ({ ...prev, skills: e.target.value }))} 
-            placeholder="AutoCAD, Excel, Python, etc."
+            placeholder="AutoCAD, Excel, Python..."
           />
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
             {commonSkills.map(skill => (
@@ -232,6 +253,7 @@ export default function ApplyForm({ onSuccess, refreshData }) {
   );
 }
 
+// Reusable Styles
 const labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, color: "#374151" };
 const inputStyle = { width: "100%", padding: "14px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "15px" };
 const skillBtn = { padding: "6px 12px", fontSize: "13px", border: "1px solid #ddd", borderRadius: 20, background: "#f8fafc", cursor: "pointer" };
