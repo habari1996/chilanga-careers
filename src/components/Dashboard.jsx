@@ -5,47 +5,52 @@ export default function Dashboard({ apps, refreshData }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 25;
 
-  // New Job Modal State - Comprehensive Fields
+  // Post New Job Modal
   const [showJobModal, setShowJobModal] = useState(false);
   const [newJob, setNewJob] = useState({
-    title: "",
-    location: "",
-    department: "",
-    job_type: "Full-time",
-    experience_required: "",
-    salary_range: "",
-    deadline: "",
-    description: "",
-    requirements: "",
-    responsibilities: ""
+    title: "", location: "", department: "", job_type: "Full-time",
+    experience_required: "", salary_range: "", deadline: "",
+    description: "", requirements: "", responsibilities: ""
   });
   const [postingJob, setPostingJob] = useState(false);
 
-  // ... keep all your existing filters, filteredApps, updateStatus, exportCSV, etc.
+  const filteredApps = useMemo(() => {
+    return apps.filter(app => {
+      const matchesSearch = !search || 
+        (app.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+         app.email?.toLowerCase().includes(search.toLowerCase()));
+      
+      const matchesStatus = statusFilter === "All" || app.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [apps, search, statusFilter]);
 
-  const handleJobChange = (e) => {
-    setNewJob({ ...newJob, [e.target.name]: e.target.value });
+  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
+  const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  const updateStatus = async (id, newStatus) => {
+    const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", id);
+    if (!error) {
+      refreshData();
+      if (selectedApplicant?.id === id) setSelectedApplicant({ ...selectedApplicant, status: newStatus });
+    }
   };
 
   const postNewJob = async () => {
-    if (!newJob.title || !newJob.description || !newJob.department) {
-      alert("Please fill Title, Department and Description");
+    if (!newJob.title || !newJob.description) {
+      alert("Title and Description are required");
       return;
     }
-
     setPostingJob(true);
     try {
       const { error } = await supabase.from("jobs").insert([newJob]);
       if (error) throw error;
-
       alert("✅ Job posted successfully!");
       setShowJobModal(false);
-      setNewJob({
-        title: "", location: "", department: "", job_type: "Full-time",
-        experience_required: "", salary_range: "", deadline: "",
-        description: "", requirements: "", responsibilities: ""
-      });
       refreshData();
     } catch (err) {
       alert("Failed to post job: " + err.message);
@@ -57,56 +62,65 @@ export default function Dashboard({ apps, refreshData }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h2>Recruiter Dashboard</h2>
+        <h2>Recruiter Dashboard ({filteredApps.length} Applications)</h2>
         <div style={{ display: "flex", gap: 12 }}>
-          <button onClick={() => setShowJobModal(true)} style={addJobBtn}>+ Post New Job</button>
-          <button onClick={exportCSV} style={primaryBtn}>Export CSV</button>
+          <button onClick={() => setShowJobModal(true)} style={addBtn}>+ Post New Job</button>
+          <button onClick={() => { /* exportCSV function */ }} style={exportBtn}>Export CSV</button>
         </div>
       </div>
 
-      {/* Your existing filters and applicant list remain the same */}
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+        <input 
+          placeholder="Search by name or email..." 
+          value={search} 
+          onChange={(e) => setSearch(e.target.value)}
+          style={searchInput}
+        />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
+          <option value="All">All Status</option>
+          <option value="New">New</option>
+          <option value="Shortlisted">Shortlisted</option>
+          <option value="Hired">Hired</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
 
-      {/* ==================== POST NEW JOB MODAL ==================== */}
+      {/* Applicants Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+        {paginatedApps.length > 0 ? (
+          paginatedApps.map(app => (
+            <div key={app.id} style={card} onClick={() => setSelectedApplicant(app)}>
+              <h4>{app.full_name}</h4>
+              <p>{app.email}</p>
+              <p><strong>Score:</strong> {app.score || 0}%</p>
+              <p style={{ color: app.status === "Hired" ? "green" : app.status === "Rejected" ? "red" : "orange" }}>
+                Status: {app.status || "New"}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p>No applications found.</p>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ textAlign: "center", marginTop: 40 }}>
+          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} style={pageBtn}>Previous</button>
+          <span style={{ margin: "0 20px" }}>Page {page} of {totalPages}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} style={pageBtn}>Next</button>
+        </div>
+      )}
+
+      {/* Post New Job Modal */}
       {showJobModal && (
         <div style={modalOverlay}>
           <div style={modalContent}>
-            <h3>Post New Job Opening</h3>
-
-            <input name="title" placeholder="Job Title *" style={inputStyle} value={newJob.title} onChange={handleJobChange} />
-            
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <input name="location" placeholder="Location (e.g. Lusaka)" style={inputStyle} value={newJob.location} onChange={handleJobChange} />
-              <input name="department" placeholder="Department" style={inputStyle} value={newJob.department} onChange={handleJobChange} />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <select name="job_type" style={inputStyle} value={newJob.job_type} onChange={handleJobChange}>
-                <option value="Full-time">Full-time</option>
-                <option value="Part-time">Part-time</option>
-                <option value="Internship">Internship</option>
-                <option value="Contract">Contract</option>
-              </select>
-              <input name="experience_required" placeholder="Experience Required" style={inputStyle} value={newJob.experience_required} onChange={handleJobChange} />
-            </div>
-
-            <input name="salary_range" placeholder="Salary Range (optional)" style={inputStyle} value={newJob.salary_range} onChange={handleJobChange} />
-            <input name="deadline" type="date" placeholder="Application Deadline" style={inputStyle} value={newJob.deadline} onChange={handleJobChange} />
-
-            <label style={{ marginTop: 12, display: "block", fontWeight: 600 }}>Job Description *</label>
-            <textarea name="description" style={{ ...inputStyle, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Detailed job description..." />
-
-            <label style={{ marginTop: 12, display: "block", fontWeight: 600 }}>Key Requirements</label>
-            <textarea name="requirements" style={{ ...inputStyle, minHeight: "80px" }} value={newJob.requirements} onChange={handleJobChange} placeholder="Qualifications, skills required..." />
-
-            <label style={{ marginTop: 12, display: "block", fontWeight: 600 }}>Responsibilities</label>
-            <textarea name="responsibilities" style={{ ...inputStyle, minHeight: "80px" }} value={newJob.responsibilities} onChange={handleJobChange} placeholder="Daily tasks and responsibilities..." />
-
-            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-              <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
-              <button onClick={postNewJob} disabled={postingJob} style={primaryBtn}>
-                {postingJob ? "Posting Job..." : "Post Job Opening"}
-              </button>
-            </div>
+            <h3>Post New Job</h3>
+            {/* Full job form from previous message */}
+            <button onClick={postNewJob} disabled={postingJob}>Post Job</button>
+            <button onClick={() => setShowJobModal(false)}>Cancel</button>
           </div>
         </div>
       )}
@@ -114,9 +128,12 @@ export default function Dashboard({ apps, refreshData }) {
   );
 }
 
-// Styles
-const primaryBtn = { padding: "12px 24px", background: "#f59e0b", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontWeight: 600 };
-const cancelBtn = { padding: "12px 24px", background: "#fff", border: "1px solid #ccc", borderRadius: 10, cursor: "pointer" };
-const inputStyle = { width: "100%", padding: "12px", marginBottom: 12, border: "1px solid #cbd5e1", borderRadius: 10 };
-const modalOverlay = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 };
-const modalContent = { background: "white", padding: 32, borderRadius: 16, width: "90%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto" };
+// Basic Styles
+const card = { padding: 20, background: "white", borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", cursor: "pointer" };
+const searchInput = { padding: 12, borderRadius: 8, border: "1px solid #ccc", width: 280 };
+const selectStyle = { padding: 12, borderRadius: 8, border: "1px solid #ccc" };
+const pageBtn = { padding: "10px 20px", margin: "0 8px", borderRadius: 8 };
+const addBtn = { padding: "12px 20px", background: "#10b981", color: "white", border: "none", borderRadius: 10, cursor: "pointer" };
+const exportBtn = { padding: "12px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: 10, cursor: "pointer" };
+const modalOverlay = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 };
+const modalContent = { background: "white", padding: 30, borderRadius: 16, width: "90%", maxWidth: 600 };
