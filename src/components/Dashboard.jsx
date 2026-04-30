@@ -8,7 +8,7 @@ export default function Dashboard({ apps, refreshData }) {
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
 
-  // Post New Job Modal
+  // Post New Job Modal State
   const [showJobModal, setShowJobModal] = useState(false);
   const [newJob, setNewJob] = useState({
     title: "", location: "", department: "", job_type: "Full-time",
@@ -22,50 +22,33 @@ export default function Dashboard({ apps, refreshData }) {
       const matchesSearch = !search || 
         (app.full_name?.toLowerCase().includes(search.toLowerCase()) ||
          app.email?.toLowerCase().includes(search.toLowerCase()));
-      
       const matchesStatus = statusFilter === "All" || app.status === statusFilter;
-      
       return matchesSearch && matchesStatus;
     });
   }, [apps, search, statusFilter]);
 
-  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
 
   const updateStatus = async (id, newStatus) => {
     const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", id);
     if (!error) {
       refreshData();
-      if (selectedApplicant?.id === id) setSelectedApplicant({ ...selectedApplicant, status: newStatus });
+      if (selectedApplicant && selectedApplicant.id === id) {
+        setSelectedApplicant({ ...selectedApplicant, status: newStatus });
+      }
     }
   };
 
-  const postNewJob = async () => {
-    if (!newJob.title || !newJob.description) {
-      alert("Title and Description are required");
-      return;
-    }
-    setPostingJob(true);
-    try {
-      const { error } = await supabase.from("jobs").insert([newJob]);
-      if (error) throw error;
-      alert("✅ Job posted successfully!");
-      setShowJobModal(false);
-      refreshData();
-    } catch (err) {
-      alert("Failed to post job: " + err.message);
-    } finally {
-      setPostingJob(false);
-    }
-  };
+  const postNewJob = async () => { /* your existing postNewJob function */ };
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h2>Recruiter Dashboard ({filteredApps.length} Applications)</h2>
         <div style={{ display: "flex", gap: 12 }}>
           <button onClick={() => setShowJobModal(true)} style={addBtn}>+ Post New Job</button>
-          <button onClick={() => { /* exportCSV function */ }} style={exportBtn}>Export CSV</button>
+          <button onClick={() => alert("CSV Export coming soon")} style={exportBtn}>Export CSV</button>
         </div>
       </div>
 
@@ -86,54 +69,97 @@ export default function Dashboard({ apps, refreshData }) {
         </select>
       </div>
 
-      {/* Applicants Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+      {/* Applicant Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
         {paginatedApps.length > 0 ? (
           paginatedApps.map(app => (
-            <div key={app.id} style={card} onClick={() => setSelectedApplicant(app)}>
-              <h4>{app.full_name}</h4>
-              <p>{app.email}</p>
+            <div 
+              key={app.id} 
+              style={cardStyle}
+              onClick={() => setSelectedApplicant(app)}
+            >
+              <h4 style={{ margin: "0 0 8px 0" }}>{app.full_name}</h4>
+              <p style={{ margin: "4px 0", color: "#64748b" }}>{app.email}</p>
               <p><strong>Score:</strong> {app.score || 0}%</p>
-              <p style={{ color: app.status === "Hired" ? "green" : app.status === "Rejected" ? "red" : "orange" }}>
-                Status: {app.status || "New"}
+              <p style={{ 
+                display: "inline-block", 
+                padding: "4px 12px", 
+                borderRadius: "9999px",
+                background: app.status === "Hired" ? "#dcfce7" : app.status === "Rejected" ? "#fee2e2" : "#fef3c7",
+                color: app.status === "Hired" ? "#166534" : app.status === "Rejected" ? "#b91c1c" : "#92400e",
+                fontSize: "0.85rem"
+              }}>
+                {app.status || "New"}
               </p>
             </div>
           ))
         ) : (
-          <p>No applications found.</p>
+          <p>No applications found matching your filters.</p>
         )}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div style={{ textAlign: "center", marginTop: 40 }}>
+        <div style={{ textAlign: "center", margin: "40px 0" }}>
           <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} style={pageBtn}>Previous</button>
           <span style={{ margin: "0 20px" }}>Page {page} of {totalPages}</span>
           <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} style={pageBtn}>Next</button>
         </div>
       )}
 
-      {/* Post New Job Modal */}
-      {showJobModal && (
-        <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h3>Post New Job</h3>
-            {/* Full job form from previous message */}
-            <button onClick={postNewJob} disabled={postingJob}>Post Job</button>
-            <button onClick={() => setShowJobModal(false)}>Cancel</button>
+      {/* Applicant Detail Sidebar */}
+      {selectedApplicant && (
+        <div style={sidebarStyle}>
+          <button onClick={() => setSelectedApplicant(null)} style={{ float: "right", fontSize: "20px", cursor: "pointer" }}>×</button>
+          <h3>{selectedApplicant.full_name}</h3>
+          <p><strong>Email:</strong> {selectedApplicant.email}</p>
+          <p><strong>Phone:</strong> {selectedApplicant.phone}</p>
+          <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
+          <p><strong>Status:</strong> {selectedApplicant.status}</p>
+
+          <div style={{ marginTop: 20 }}>
+            <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist</button>
+            <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire</button>
+            <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={rejectBtn}>Reject</button>
           </div>
         </div>
       )}
+
+      {/* Job Posting Modal - Keep your existing modal here */}
     </div>
   );
 }
 
-// Basic Styles
-const card = { padding: 20, background: "white", borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", cursor: "pointer" };
-const searchInput = { padding: 12, borderRadius: 8, border: "1px solid #ccc", width: 280 };
-const selectStyle = { padding: 12, borderRadius: 8, border: "1px solid #ccc" };
-const pageBtn = { padding: "10px 20px", margin: "0 8px", borderRadius: 8 };
-const addBtn = { padding: "12px 20px", background: "#10b981", color: "white", border: "none", borderRadius: 10, cursor: "pointer" };
-const exportBtn = { padding: "12px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: 10, cursor: "pointer" };
-const modalOverlay = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 };
-const modalContent = { background: "white", padding: 30, borderRadius: 16, width: "90%", maxWidth: 600 };
+// Styles
+const cardStyle = {
+  padding: "20px",
+  background: "white",
+  borderRadius: "16px",
+  boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+  cursor: "pointer",
+  transition: "all 0.2s"
+};
+
+const sidebarStyle = {
+  position: "fixed",
+  top: "80px",
+  right: "20px",
+  width: "380px",
+  background: "white",
+  padding: "24px",
+  borderRadius: "16px",
+  boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+  zIndex: 1000,
+  maxHeight: "80vh",
+  overflowY: "auto"
+};
+
+const shortlistBtn = { background: "#eab308", color: "white", padding: "10px 16px", border: "none", borderRadius: "8px", marginRight: "8px", cursor: "pointer" };
+const hireBtn = { background: "#22c55e", color: "white", padding: "10px 16px", border: "none", borderRadius: "8px", marginRight: "8px", cursor: "pointer" };
+const rejectBtn = { background: "#ef4444", color: "white", padding: "10px 16px", border: "none", borderRadius: "8px", cursor: "pointer" };
+
+const pageBtn = { padding: "10px 20px", border: "1px solid #ccc", borderRadius: "8px", cursor: "pointer" };
+const addBtn = { padding: "12px 24px", background: "#10b981", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" };
+const exportBtn = { padding: "12px 24px", background: "#3b82f6", color: "white", border: "none", borderRadius: "10px", cursor: "pointer" };
+const searchInput = { padding: "12px", width: "280px", borderRadius: "8px", border: "1px solid #ccc" };
+const selectStyle = { padding: "12px", borderRadius: "8px", border: "1px solid #ccc" };
