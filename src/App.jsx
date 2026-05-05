@@ -31,6 +31,7 @@ export default function App() {
       supabase.auth.onAuthStateChange((event, newSession) => {
         setSession(newSession);
         if (event === "SIGNED_IN") setTab("dashboard");
+        if (event === "SIGNED_OUT") setTab("home");
       });
     };
 
@@ -50,11 +51,30 @@ export default function App() {
 
   const handleSetTab = (newTab, jobId = null) => {
     if (newTab !== "apply") {
-      setSelectedJobId(null);        // Clear when leaving apply tab
+      setSelectedJobId(null);
     } else {
       setSelectedJobId(jobId);
     }
     setTab(newTab);
+  };
+
+  // ✅ FIXED: Real Supabase Logout
+  const handleSignOut = async () => {
+    try {
+      const { supabase } = await import("./supabaseClient");
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+
+      setSession(null);
+      setSelectedJobId(null);
+      setTab("home");
+      
+      alert("✅ You have been logged out successfully.");
+    } catch (err) {
+      console.error("Logout error:", err);
+      alert("Logout failed. Please try again.");
+    }
   };
 
   return (
@@ -64,7 +84,7 @@ export default function App() {
         setTab={handleSetTab}
         session={session}
         isHR={isHR}
-        onSignOut={() => { setTab("home"); }}
+        onSignOut={handleSignOut}        // ← Now properly connected
       />
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
