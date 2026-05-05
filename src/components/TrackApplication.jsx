@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "../supabaseClient";
 
-// FIX: Only select non-sensitive status fields — not DOB, score, full profile
-// Anyone who knows an applicant's email should only see name + status + date, not their full record
 export default function TrackApplication() {
   const [email, setEmail] = useState("");
   const [application, setApplication] = useState(null);
@@ -10,12 +8,12 @@ export default function TrackApplication() {
   const [error, setError] = useState("");
 
   const trackApplication = async () => {
-    if (!email) {
+    if (!email.trim()) {
       setError("Please enter your email address");
       return;
     }
 
-    // Basic email format check
+    // Basic validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.");
       return;
@@ -26,11 +24,12 @@ export default function TrackApplication() {
     setApplication(null);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
+
       const { data, error: fetchError } = await supabase
         .from("applications")
-        // FIX: Select only safe fields — not dob, score, phone, institution, or full CV data
-        .select("full_name, status, created_at, qualification")
-        .eq("email", email.trim().toLowerCase())
+        .select("full_name, status, created_at, qualification, email")
+        .eq("email", cleanEmail)
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -39,10 +38,11 @@ export default function TrackApplication() {
       if (data && data.length > 0) {
         setApplication(data[0]);
       } else {
-        setError("No application found with this email address.");
+        setError("No application found with this email address.\n\nPlease make sure you are using the exact email you applied with.");
       }
     } catch (err) {
-      setError("Error: " + err.message);
+      console.error(err);
+      setError("Error searching for application: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -85,8 +85,6 @@ export default function TrackApplication() {
           }}
         />
 
-        <br />
-
         <button
           onClick={trackApplication}
           disabled={loading}
@@ -106,46 +104,47 @@ export default function TrackApplication() {
         </button>
 
         {error && (
-          <p style={{ color: "#ef4444", marginTop: 20, fontWeight: 500 }}>{error}</p>
+          <p style={{ color: "#ef4444", marginTop: 20, fontWeight: 500, whiteSpace: "pre-line" }}>{error}</p>
         )}
 
-        {application && (() => {
-          const sc = statusColor(application.status);
-          return (
-            <div style={{ marginTop: 40, textAlign: "left", background: "#f8fafc", padding: 30, borderRadius: 12 }}>
-              <h3 style={{ color: "#16a34a", marginBottom: 20, marginTop: 0 }}>✅ Application Found</h3>
+        {application && (
+          <div style={{ marginTop: 40, textAlign: "left", background: "#f8fafc", padding: 30, borderRadius: 12 }}>
+            <h3 style={{ color: "#16a34a", marginBottom: 20, marginTop: 0 }}>✅ Application Found</h3>
 
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
-                <tbody>
-                  <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "10px 0", color: "#64748b", width: "40%" }}>Applicant</td>
-                    <td style={{ padding: "10px 0", fontWeight: 500 }}>{application.full_name}</td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "10px 0", color: "#64748b" }}>Status</td>
-                    <td style={{ padding: "10px 0" }}>
-                      <span style={{ padding: "5px 16px", borderRadius: 20, background: sc.bg, color: sc.color, fontWeight: 600, fontSize: 13 }}>
-                        {application.status || "Under Review"}
-                      </span>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "10px 0", color: "#64748b" }}>Qualification</td>
-                    <td style={{ padding: "10px 0" }}>{application.qualification || "—"}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: "10px 0", color: "#64748b" }}>Applied On</td>
-                    <td style={{ padding: "10px 0" }}>{new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
+              <tbody>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "10px 0", color: "#64748b", width: "40%" }}>Applicant</td>
+                  <td style={{ padding: "10px 0", fontWeight: 500 }}>{application.full_name}</td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "10px 0", color: "#64748b" }}>Email</td>
+                  <td style={{ padding: "10px 0" }}>{application.email}</td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "10px 0", color: "#64748b" }}>Status</td>
+                  <td style={{ padding: "10px 0" }}>
+                    <span style={{ padding: "5px 16px", borderRadius: 20, background: statusColor(application.status).bg, color: statusColor(application.status).color, fontWeight: 600, fontSize: 13 }}>
+                      {application.status || "Under Review"}
+                    </span>
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "10px 0", color: "#64748b" }}>Qualification</td>
+                  <td style={{ padding: "10px 0" }}>{application.qualification || "—"}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: "10px 0", color: "#64748b" }}>Applied On</td>
+                  <td style={{ padding: "10px 0" }}>{new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</td>
+                </tr>
+              </tbody>
+            </table>
 
-              <div style={{ marginTop: 20, padding: 16, background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a", fontSize: 14, color: "#78350f" }}>
-                Our HR team will contact you at your registered email address. If your status is "Under Review", your application is still being assessed.
-              </div>
+            <div style={{ marginTop: 20, padding: 16, background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a", fontSize: 14, color: "#78350f" }}>
+              Our HR team will contact you at this email address if shortlisted.
             </div>
-          );
-        })()}
+          </div>
+        )}
       </div>
     </div>
   );
