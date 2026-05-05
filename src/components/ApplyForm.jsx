@@ -29,13 +29,14 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   const [jobTitle, setJobTitle] = useState("Graduate Trainee Application — Step Up Program 2026");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // Responsive layout handler
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Improved Job ID handling
+  // Improved Job ID handling (from prop or URL)
   useEffect(() => {
     let jobId = initialJobId;
 
@@ -216,6 +217,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       alert("✅ Application submitted successfully!");
       onSuccess();
 
+      // Reset form
       setForm({
         full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "",
         gender: "", nationality: "Zambian", qualification: "", institution: "",
@@ -243,19 +245,18 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         <h2 style={{ textAlign: "center", marginBottom: "8px", fontSize: "28px" }}>{jobTitle}</h2>
         <p style={{ textAlign: "center", color: "#64748b", marginBottom: "32px" }}>Step Up Program 2026</p>
 
-        {/* Rest of your form remains exactly the same */}
         <div style={twoCol}>
           <div>
             <label style={label}>Full Name *</label>
-            <input name="full_name" style={input} value={form.full_name} onChange={handleChange} />
+            <input name="full_name" style={input} value={form.full_name} onChange={handleChange} required />
           </div>
           <div>
             <label style={label}>Email Address *</label>
-            <input name="email" type="email" style={input} value={form.email} onChange={handleChange} />
+            <input name="email" type="email" style={input} value={form.email} onChange={handleChange} required />
           </div>
           <div>
             <label style={label}>Phone Number *</label>
-            <input name="phone" style={input} value={form.phone} onChange={handleChange} placeholder="0977 123 456" />
+            <input name="phone" style={input} value={form.phone} onChange={handleChange} placeholder="0977 123 456" required />
           </div>
           <div>
             <label style={label}>Alternative Phone</label>
@@ -263,8 +264,142 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </div>
         </div>
 
-        {/* ... (All other form fields are unchanged - I'm keeping them to avoid errors) */}
-        {/* Copy the rest of your original ApplyForm.jsx from the previous version here if needed */}
+        <div style={{ ...twoCol, marginTop: "20px" }}>
+          <div>
+            <label style={label}>Date of Birth</label>
+            <input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} />
+          </div>
+          <div>
+            <label style={label}>
+              Age
+              {form.age && parseInt(form.age) < 18 && <span style={{ color: "#ef4444", fontSize: 12, marginLeft: 8 }}>Must be 18+</span>}
+            </label>
+            <input name="age" style={{ ...input, background: "#f8fafc", color: "#64748b" }} value={form.age} readOnly />
+          </div>
+        </div>
+
+        <div style={{ ...twoCol, marginTop: "24px" }}>
+          <div>
+            <label style={label}>Gender</label>
+            <select name="gender" style={input} value={form.gender} onChange={handleChange}>
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+          </div>
+          <div>
+            <label style={label}>Nationality</label>
+            <input name="nationality" style={input} value={form.nationality} onChange={handleChange} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: "24px" }}>
+          <label style={label}>Highest Qualification *</label>
+          <select name="qualification" style={input} value={form.qualification} onChange={handleChange} required>
+            <option value="">Select Qualification</option>
+            {qualifications.map(q => <option key={q} value={q}>{q}</option>)}
+          </select>
+        </div>
+
+        <div style={{ marginTop: "24px" }}>
+          <label style={label}>Institution / University *</label>
+          <select name="institution" style={input} value={form.institution} onChange={handleChange} required>
+            <option value="">Select Institution</option>
+            {institutions.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+        </div>
+
+        <div style={{ ...twoCol, marginTop: "24px" }}>
+          <div>
+            <label style={label}>Field of Study</label>
+            <select name="field_of_study" style={input} value={form.field_of_study} onChange={handleChange}>
+              <option value="">Select Field of Study</option>
+              {fieldsOfStudy.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={label}>Graduation Year</label>
+            <select name="graduation_year" style={input} value={form.graduation_year} onChange={handleChange}>
+              <option value="">Select Year</option>
+              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "24px" }}>
+          <label style={label}>Key Skills</label>
+          <input name="skills" style={input} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
+          <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {commonSkills.map(skill => (
+              <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>+ {skill}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "24px" }}>
+          <label style={label}>Work Experience / Background</label>
+          <textarea
+            name="experience"
+            value={form.experience}
+            onChange={handleChange}
+            style={{ ...input, minHeight: "100px" }}
+            placeholder="Briefly describe any internships, work experience, or relevant projects..."
+          />
+        </div>
+
+        {/* CV Section */}
+        <div style={{ marginTop: "28px" }}>
+          <label style={label}>How would you like to provide your CV?</label>
+          <div style={{ display: "flex", gap: "12px", marginTop: "10px", flexWrap: "wrap" }}>
+            <button 
+              onClick={() => setCvOption("upload")} 
+              style={{ ...optionBtn, background: cvOption === "upload" ? "#f59e0b" : "#f1f5f9", color: cvOption === "upload" ? "#fff" : "#000" }}
+            >
+              Upload CV File
+            </button>
+            <button 
+              onClick={() => setCvOption("type")} 
+              style={{ ...optionBtn, background: cvOption === "type" ? "#f59e0b" : "#f1f5f9", color: cvOption === "type" ? "#fff" : "#000" }}
+            >
+              Type / Paste CV
+            </button>
+          </div>
+        </div>
+
+        {cvOption === "upload" && (
+          <div style={{ marginTop: "20px" }}>
+            <label style={label}>Upload CV (PDF or Word)</label>
+            <input id="cvFile" type="file" accept=".pdf,.doc,.docx" style={input} />
+          </div>
+        )}
+
+        {cvOption === "type" && (
+          <div style={{ marginTop: "20px" }}>
+            <label style={label}>Paste Your CV Content</label>
+            <textarea 
+              name="cv_text" 
+              value={form.cv_text} 
+              onChange={handleChange} 
+              style={{ ...input, minHeight: "160px" }} 
+              placeholder="Paste your full CV here..." 
+            />
+            <button onClick={reviewWithAI} disabled={aiLoading || !form.cv_text} style={aiBtn}>
+              {aiLoading ? "Analyzing..." : "Review with AI Agent"}
+            </button>
+
+            {aiReview && (
+              <div style={aiCard}>
+                <h4 style={{ margin: "0 0 10px" }}>🧠 AI Review — Score: {aiReview.score}%</h4>
+                <p style={{ margin: "4px 0" }}><strong>Summary:</strong> {aiReview.summary}</p>
+                <p style={{ margin: "4px 0" }}><strong>Recommendation:</strong> {aiReview.recommendation}</p>
+                {aiReview.strengths.length > 0 && (
+                  <p style={{ margin: "4px 0" }}><strong>Strengths:</strong> {aiReview.strengths.join(" · ")}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ marginTop: "32px" }}>
           <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer" }}>
@@ -285,7 +420,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   );
 }
 
-// ============== STYLES ==============
+// ====================== STYLES ======================
 const label = { display: "block", marginBottom: "8px", fontWeight: "600", color: "#374151" };
 const input = { width: "100%", padding: "14px 16px", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "15px", boxSizing: "border-box" };
 const skillBtn = { padding: "6px 14px", fontSize: "13px", border: "1px solid #e2e8f0", borderRadius: "9999px", background: "#f8fafc", cursor: "pointer" };
