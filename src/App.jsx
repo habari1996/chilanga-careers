@@ -13,6 +13,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [apps, setApps] = useState([]);
   const [jobs, setJobs] = useState([]);
+  const [selectedJobId, setSelectedJobId] = useState(null);
 
   const isHR = session?.user?.email && (
     session.user.email.toLowerCase().includes("@huaxin.com") ||
@@ -27,9 +28,9 @@ export default function App() {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
-      const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      supabase.auth.onAuthStateChange((event, newSession) => {
         setSession(newSession);
-        if (event === 'SIGNED_IN') setTab("dashboard");
+        if (event === "SIGNED_IN") setTab("dashboard");
       });
     };
 
@@ -43,19 +44,27 @@ export default function App() {
       supabase.from("jobs").select("*").order("id"),
       supabase.from("applications").select("*").order("created_at", { ascending: false }),
     ]);
-
     setJobs(jobsData || []);
     setApps(appsData || []);
   }
 
+  const handleSetTab = (newTab, jobId = null) => {
+    if (newTab !== "apply") {
+      setSelectedJobId(null);        // Clear when leaving apply tab
+    } else {
+      setSelectedJobId(jobId);
+    }
+    setTab(newTab);
+  };
+
   return (
     <div style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
-      <Navbar 
-        tab={tab} 
-        setTab={setTab} 
-        session={session} 
-        isHR={isHR} 
-        onSignOut={() => setTab("home")} 
+      <Navbar
+        tab={tab}
+        setTab={handleSetTab}
+        session={session}
+        isHR={isHR}
+        onSignOut={() => { setTab("home"); }}
       />
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
@@ -65,21 +74,30 @@ export default function App() {
             <p style={{ fontSize: "1.4rem", maxWidth: 700, margin: "0 auto 40px" }}>
               Launch your career with Zambia's leading cement manufacturer.
             </p>
-            <button onClick={() => setTab("apply")} style={primaryBtn}>Start Your Application</button>
+            <button onClick={() => handleSetTab("apply")} style={primaryBtn}>Start Your Application</button>
           </div>
         )}
 
-        {tab === "jobs" && <JobList jobs={jobs} />}
-        {tab === "apply" && <ApplyForm onSuccess={() => setTab("confirmation")} refreshData={loadData} />}
+        {tab === "jobs" && <JobList jobs={jobs} setTab={handleSetTab} />}
+
+        {tab === "apply" && (
+          <ApplyForm
+            onSuccess={() => setTab("confirmation")}
+            refreshData={loadData}
+            initialJobId={selectedJobId}
+          />
+        )}
+
         {tab === "confirmation" && <Confirmation onBack={() => setTab("home")} />}
-        {tab === "auth" && <AuthForm setTab={setTab} />}
+        {tab === "auth" && <AuthForm setTab={handleSetTab} />}
         {tab === "track" && <TrackApplication />}
+
         {tab === "dashboard" && isHR && <Dashboard apps={apps} refreshData={loadData} />}
         {tab === "dashboard" && !isHR && (
           <div style={{ textAlign: "center", padding: "100px 20px" }}>
             <h2>🔒 Restricted Access</h2>
             <p>This dashboard is only for authorized HR staff.</p>
-            <button onClick={() => setTab("auth")} style={primaryBtn}>Go to HR Login</button>
+            <button onClick={() => handleSetTab("auth")} style={primaryBtn}>Go to HR Login</button>
           </div>
         )}
       </main>
@@ -92,11 +110,6 @@ export default function App() {
 }
 
 const primaryBtn = {
-  padding: "14px 32px",
-  fontSize: "1.1rem",
-  background: "#f59e0b",
-  color: "white",
-  border: "none",
-  borderRadius: 12,
-  cursor: "pointer"
+  padding: "14px 32px", fontSize: "1.1rem", background: "#f59e0b",
+  color: "white", border: "none", borderRadius: 12, cursor: "pointer"
 };
