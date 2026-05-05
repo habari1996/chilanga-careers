@@ -15,6 +15,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     qualifications: null,
   });
 
+  const [cvOption, setCvOption] = useState("upload");
   const [aiReview, setAiReview] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -133,7 +134,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       let nrc_url = null;
       let qualifications_url = null;
 
-      // Upload NRC
       if (files.nrc) {
         const fileName = `documents/nrc/${Date.now()}_${files.nrc.name}`;
         const { error } = await supabase.storage.from("cvs").upload(fileName, files.nrc);
@@ -142,7 +142,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         nrc_url = data.publicUrl;
       }
 
-      // Upload CV
       if (files.cv) {
         const fileName = `documents/cv/${Date.now()}_${files.cv.name}`;
         const { error } = await supabase.storage.from("cvs").upload(fileName, files.cv);
@@ -151,7 +150,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         cv_url = data.publicUrl;
       }
 
-      // Upload Qualifications
       if (files.qualifications) {
         const fileName = `documents/qualifications/${Date.now()}_${files.qualifications.name}`;
         const { error } = await supabase.storage.from("cvs").upload(fileName, files.qualifications);
@@ -186,13 +184,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       alert("✅ Application submitted successfully!");
       onSuccess();
 
-      // Reset
-      setForm({
-        full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "",
-        gender: "", nationality: "Zambian", qualification: "", institution: "",
-        field_of_study: "", graduation_year: "", skills: "", experience: "",
-        cv_text: "", job_id: null
-      });
+      setForm({ full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "", gender: "", nationality: "Zambian", qualification: "", institution: "", field_of_study: "", graduation_year: "", skills: "", experience: "", cv_text: "", job_id: null });
       setFiles({ nrc: null, cv: null, qualifications: null });
       setAgreed(false);
       setAiReview(null);
@@ -218,7 +210,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           <p style={{ color: "#64748b" }}>Chilanga Cement PLC • Step Up Program 2026</p>
         </div>
 
-        {/* Personal Information */}
         <div style={twoCol}>
           <div>
             <label style={label}>Full Name *</label>
@@ -238,51 +229,104 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </div>
         </div>
 
-        {/* More fields... (kept compact for space) */}
-        {/* Date of Birth, Gender, Qualification, Institution, etc. remain the same as before */}
+        <div style={{ ...twoCol, marginTop: "32px" }}>
+          <div>
+            <label style={label}>Date of Birth</label>
+            <input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} />
+          </div>
+          <div>
+            <label style={label}>
+              Age {form.age && parseInt(form.age) < 18 && <span style={{ color: "#ef4444" }}> (Must be 18+)</span>}
+            </label>
+            <input name="age" style={{ ...input, background: "#f8fafc" }} value={form.age} readOnly />
+          </div>
+        </div>
 
-        {/* === DOCUMENTS UPLOAD SECTION === */}
+        <div style={{ ...twoCol, marginTop: "32px" }}>
+          <div>
+            <label style={label}>Gender</label>
+            <select name="gender" style={input} value={form.gender} onChange={handleChange}>
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+          </div>
+          <div>
+            <label style={label}>Nationality</label>
+            <input name="nationality" style={input} value={form.nationality} onChange={handleChange} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: "32px" }}>
+          <label style={label}>Highest Qualification *</label>
+          <select name="qualification" style={input} value={form.qualification} onChange={handleChange} required>
+            <option value="">Select Qualification</option>
+            {qualifications.map(q => <option key={q} value={q}>{q}</option>)}
+          </select>
+        </div>
+
+        <div style={{ marginTop: "32px" }}>
+          <label style={label}>Institution / University *</label>
+          <select name="institution" style={input} value={form.institution} onChange={handleChange} required>
+            <option value="">Select Institution</option>
+            {institutions.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+        </div>
+
+        <div style={{ ...twoCol, marginTop: "32px" }}>
+          <div>
+            <label style={label}>Field of Study</label>
+            <select name="field_of_study" style={input} value={form.field_of_study} onChange={handleChange}>
+              <option value="">Select Field of Study</option>
+              {fieldsOfStudy.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={label}>Graduation Year</label>
+            <select name="graduation_year" style={input} value={form.graduation_year} onChange={handleChange}>
+              <option value="">Select Year</option>
+              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "32px" }}>
+          <label style={label}>Key Skills</label>
+          <input name="skills" style={input} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
+          <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {commonSkills.map(skill => (
+              <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>+ {skill}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "32px" }}>
+          <label style={label}>Work Experience / Background</label>
+          <textarea name="experience" value={form.experience} onChange={handleChange} style={{ ...input, minHeight: "110px" }} placeholder="Briefly describe any internships, work experience..." />
+        </div>
+
+        {/* Documents Upload */}
         <div style={{ marginTop: "40px" }}>
           <label style={label}>Upload Required Documents</label>
-          <p style={{ color: "#64748b", marginBottom: "20px" }}>
-            NRC, CV, and Academic Qualifications (PDF, JPG, or PNG)
-          </p>
+          <p style={{ color: "#64748b", marginBottom: "16px" }}>NRC, CV, and Academic Qualifications (PDF, JPG, PNG)</p>
 
-          <div style={{ display: "grid", gap: "24px" }}>
+          <div style={{ display: "grid", gap: "20px" }}>
             <div>
               <label style={label}>National Registration Card (NRC) *</label>
-              <input 
-                type="file" 
-                accept=".pdf,.jpg,.jpeg,.png" 
-                onChange={(e) => handleFileChange("nrc", e)}
-                style={input} 
-              />
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("nrc", e)} style={input} />
             </div>
-
             <div>
               <label style={label}>Curriculum Vitae (CV / Resume) *</label>
-              <input 
-                type="file" 
-                accept=".pdf,.doc,.docx" 
-                onChange={(e) => handleFileChange("cv", e)}
-                style={input} 
-              />
+              <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange("cv", e)} style={input} />
             </div>
-
             <div>
               <label style={label}>Academic Qualifications / Certificates</label>
-              <input 
-                type="file" 
-                accept=".pdf,.jpg,.jpeg,.png" 
-                onChange={(e) => handleFileChange("qualifications", e)}
-                style={input} 
-              />
-              <small style={{ color: "#64748b" }}>Grade 12, Diploma, Degree, etc.</small>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("qualifications", e)} style={input} />
             </div>
           </div>
         </div>
 
-        {/* Agreement */}
         <div style={{ marginTop: "40px" }}>
           <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer" }}>
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 4 }} />
@@ -290,11 +334,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </label>
         </div>
 
-        <button
-          onClick={submitApplication}
-          disabled={loading || !agreed}
-          style={submitBtn}
-        >
+        <button onClick={submitApplication} disabled={loading || !agreed} style={submitBtn}>
           {loading ? "Submitting Application..." : "Submit Application"}
         </button>
       </div>
@@ -306,4 +346,5 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 const label = { display: "block", marginBottom: "8px", fontWeight: "600", color: "#374151" };
 const input = { width: "100%", padding: "16px", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "1rem", boxSizing: "border-box" };
 const twoCol = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" };
+const skillBtn = { padding: "8px 16px", fontSize: "0.9rem", border: "1px solid #e2e8f0", borderRadius: "9999px", background: "#f8fafc", cursor: "pointer" };
 const submitBtn = { width: "100%", padding: "18px", marginTop: "40px", background: "#f59e0b", color: "white", border: "none", borderRadius: "12px", fontSize: "1.1rem", fontWeight: "600", cursor: "pointer" };
