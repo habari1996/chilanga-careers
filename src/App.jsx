@@ -58,7 +58,6 @@ export default function App() {
     setTab(newTab);
   };
 
-  // ✅ FIXED: Real Supabase Logout
   const handleSignOut = async () => {
     try {
       const { supabase } = await import("./supabaseClient");
@@ -84,22 +83,126 @@ export default function App() {
         setTab={handleSetTab}
         session={session}
         isHR={isHR}
-        onSignOut={handleSignOut}        // ← Now properly connected
+        onSignOut={handleSignOut}
       />
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
         {tab === "home" && (
-          <div style={{ textAlign: "center", padding: "100px 20px" }}>
-            <h1 style={{ fontSize: "3rem", marginBottom: 16 }}>Chilanga Cement Step Up Program 2026</h1>
-            <p style={{ fontSize: "1.4rem", maxWidth: 700, margin: "0 auto 40px" }}>
-              Launch your career with Zambia's leading cement manufacturer.
-            </p>
-            <button onClick={() => handleSetTab("apply")} style={primaryBtn}>Start Your Application</button>
+          <div style={{
+            textAlign: "center",
+            padding: "120px 20px 100px",
+            background: "linear-gradient(135deg, #0f172a 0%, #1e2937 100%)",
+            color: "white",
+            position: "relative",
+            overflow: "hidden",
+            margin: "-20px -16px 40px -16px"   // Full width hero
+          }}>
+            {/* Background accent */}
+            <div style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "radial-gradient(circle at 30% 20%, rgba(245, 158, 11, 0.15) 0%, transparent 50%)",
+              zIndex: 1
+            }} />
+
+            <div style={{ position: "relative", zIndex: 2, maxWidth: "1100px", margin: "0 auto" }}>
+              <h1 style={{
+                fontSize: "3.8rem",
+                fontWeight: 800,
+                marginBottom: 24,
+                lineHeight: 1.1,
+                background: "linear-gradient(90deg, #ffffff, #fcd34d)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent"
+              }}>
+                Chilanga Cement<br />Job Application Portal
+              </h1>
+
+              <p style={{
+                fontSize: "1.4rem",
+                maxWidth: "720px",
+                margin: "0 auto 50px",
+                opacity: 0.95,
+                lineHeight: 1.6
+              }}>
+                Build your future with Zambia’s leading cement manufacturer. 
+                We’re looking for talented, ambitious individuals to help shape the infrastructure of tomorrow.
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap", marginBottom: 80 }}>
+                <button 
+                  onClick={() => handleSetTab("jobs")}
+                  style={{
+                    padding: "18px 42px",
+                    fontSize: "1.15rem",
+                    fontWeight: 600,
+                    background: "white",
+                    color: "#0f172a",
+                    border: "none",
+                    borderRadius: 9999,
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+                  }}
+                  onMouseOver={(e) => e.target.style.transform = "translateY(-4px)"}
+                  onMouseOut={(e) => e.target.style.transform = "translateY(0)"}
+                >
+                  Browse Open Positions
+                </button>
+
+                <button 
+                  onClick={() => handleSetTab("apply")}
+                  style={{
+                    padding: "18px 42px",
+                    fontSize: "1.15rem",
+                    fontWeight: 600,
+                    background: "#f59e0b",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 9999,
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    boxShadow: "0 10px 30px rgba(245, 158, 11, 0.4)"
+                  }}
+                  onMouseOver={(e) => e.target.style.transform = "translateY(-4px)"}
+                  onMouseOut={(e) => e.target.style.transform = "translateY(0)"}
+                >
+                  Start Your Application
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "60px",
+                flexWrap: "wrap"
+              }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "2.8rem", fontWeight: 700, color: "#f59e0b" }}>60+</div>
+                  <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>Years of Excellence</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "2.8rem", fontWeight: 700, color: "#f59e0b" }}>500+</div>
+                  <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>Dedicated Employees</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "2.8rem", fontWeight: 700, color: "#f59e0b" }}>4</div>
+                  <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>Manufacturing Plants</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "2.8rem", fontWeight: 700, color: "#f59e0b" }}>∞</div>
+                  <div style={{ fontSize: "1.1rem", opacity: 0.8 }}>Growth Opportunities</div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
         {tab === "jobs" && <JobList jobs={jobs} setTab={handleSetTab} />}
-
         {tab === "apply" && (
           <ApplyForm
             onSuccess={() => setTab("confirmation")}
@@ -107,11 +210,9 @@ export default function App() {
             initialJobId={selectedJobId}
           />
         )}
-
         {tab === "confirmation" && <Confirmation onBack={() => setTab("home")} />}
         {tab === "auth" && <AuthForm setTab={handleSetTab} />}
         {tab === "track" && <TrackApplication />}
-
         {tab === "dashboard" && isHR && <Dashboard apps={apps} refreshData={loadData} />}
         {tab === "dashboard" && !isHR && (
           <div style={{ textAlign: "center", padding: "100px 20px" }}>
@@ -130,6 +231,11 @@ export default function App() {
 }
 
 const primaryBtn = {
-  padding: "14px 32px", fontSize: "1.1rem", background: "#f59e0b",
-  color: "white", border: "none", borderRadius: 12, cursor: "pointer"
+  padding: "14px 32px", 
+  fontSize: "1.1rem", 
+  background: "#f59e0b",
+  color: "white", 
+  border: "none", 
+  borderRadius: 12, 
+  cursor: "pointer"
 };
