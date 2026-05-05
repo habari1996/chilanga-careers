@@ -7,6 +7,9 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     gender: "", nationality: "Zambian", qualification: "", institution: "",
     field_of_study: "", graduation_year: "", skills: "", experience: "",
     cv_text: "", job_id: null,
+    other_institution: "",
+    other_qualification: "",
+    other_field: ""
   });
 
   const [files, setFiles] = useState({
@@ -15,19 +18,11 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     qualifications: null,
   });
 
-  const [cvOption, setCvOption] = useState("upload");
   const [aiReview, setAiReview] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [jobTitle, setJobTitle] = useState("Graduate Trainee Application — Step Up Program 2026");
-
-  // Responsive
-  useEffect(() => {
-    const handleResize = () => {};
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   // Job ID handling
   useEffect(() => {
@@ -61,6 +56,10 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
       setForm(prev => ({ ...prev, dob: value, age: age.toString() }));
     }
+  };
+
+  const handleOtherChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const addSkill = (skill) => {
@@ -184,7 +183,13 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       alert("✅ Application submitted successfully!");
       onSuccess();
 
-      setForm({ full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "", gender: "", nationality: "Zambian", qualification: "", institution: "", field_of_study: "", graduation_year: "", skills: "", experience: "", cv_text: "", job_id: null });
+      // Reset form
+      setForm({
+        full_name: "", email: "", phone: "", alt_phone: "", dob: "", age: "",
+        gender: "", nationality: "Zambian", qualification: "", institution: "",
+        field_of_study: "", graduation_year: "", skills: "", experience: "",
+        cv_text: "", job_id: null, other_institution: "", other_qualification: "", other_field: ""
+      });
       setFiles({ nrc: null, cv: null, qualifications: null });
       setAgreed(false);
       setAiReview(null);
@@ -195,6 +200,31 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       setLoading(false);
     }
   };
+
+  const qualifications = [
+    "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
+    "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science",
+    "Bachelor of Commerce", "Bachelor of Business Administration", "Master's Degree", "Other"
+  ];
+
+  const institutions = [
+    "University of Zambia (UNZA)", "Copperbelt University (CBU)", "Mulungushi University",
+    "University of Lusaka (UNILUS)", "Zambia Open University (ZAOU)", "Kwame Nkrumah University",
+    "Mukuba University", "Chalimbana University", "Levy Mwanawasa Medical University",
+    "ZCAS University", "Cavendish University Zambia", "Eden University",
+    "Lusaka Apex Medical University", "DMI-St. Eugene University", "Other"
+  ];
+
+  const fieldsOfStudy = [
+    "Mechanical Engineering", "Electrical Engineering", "Civil Engineering", "Mining Engineering",
+    "Chemical Engineering", "Computer Science", "Information Technology", "Business Administration",
+    "Accounting", "Finance", "Marketing", "Human Resource Management", "Other"
+  ];
+
+  const commonSkills = [
+    "AutoCAD", "Microsoft Excel", "Project Management", "Python", "Data Analysis",
+    "MATLAB", "SolidWorks", "SAP", "Power BI", "SQL", "Leadership", "Communication"
+  ];
 
   return (
     <div style={{ maxWidth: "920px", margin: "40px auto", padding: "0 16px" }}>
@@ -235,9 +265,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
             <input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} />
           </div>
           <div>
-            <label style={label}>
-              Age {form.age && parseInt(form.age) < 18 && <span style={{ color: "#ef4444" }}> (Must be 18+)</span>}
-            </label>
+            <label style={label}>Age</label>
             <input name="age" style={{ ...input, background: "#f8fafc" }} value={form.age} readOnly />
           </div>
         </div>
@@ -258,37 +286,63 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </div>
         </div>
 
+        {/* Qualification with Other */}
         <div style={{ marginTop: "32px" }}>
           <label style={label}>Highest Qualification *</label>
           <select name="qualification" style={input} value={form.qualification} onChange={handleChange} required>
             <option value="">Select Qualification</option>
             {qualifications.map(q => <option key={q} value={q}>{q}</option>)}
+            <option value="Other">Other (Please specify)</option>
           </select>
+          {form.qualification === "Other" && (
+            <input
+              type="text"
+              placeholder="Enter your qualification"
+              style={{ ...input, marginTop: "12px" }}
+              value={form.other_qualification}
+              onChange={(e) => handleOtherChange("other_qualification", e.target.value)}
+              required
+            />
+          )}
         </div>
 
+        {/* Institution with Other */}
         <div style={{ marginTop: "32px" }}>
           <label style={label}>Institution / University *</label>
           <select name="institution" style={input} value={form.institution} onChange={handleChange} required>
             <option value="">Select Institution</option>
             {institutions.map(i => <option key={i} value={i}>{i}</option>)}
+            <option value="Other">Other (Please specify)</option>
           </select>
+          {form.institution === "Other" && (
+            <input
+              type="text"
+              placeholder="Enter your institution / university"
+              style={{ ...input, marginTop: "12px" }}
+              value={form.other_institution}
+              onChange={(e) => handleOtherChange("other_institution", e.target.value)}
+              required
+            />
+          )}
         </div>
 
-        <div style={{ ...twoCol, marginTop: "32px" }}>
-          <div>
-            <label style={label}>Field of Study</label>
-            <select name="field_of_study" style={input} value={form.field_of_study} onChange={handleChange}>
-              <option value="">Select Field of Study</option>
-              {fieldsOfStudy.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={label}>Graduation Year</label>
-            <select name="graduation_year" style={input} value={form.graduation_year} onChange={handleChange}>
-              <option value="">Select Year</option>
-              {Array.from({ length: 37 }, (_, i) => 2026 - i).map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
+        {/* Field of Study with Other */}
+        <div style={{ marginTop: "32px" }}>
+          <label style={label}>Field of Study</label>
+          <select name="field_of_study" style={input} value={form.field_of_study} onChange={handleChange}>
+            <option value="">Select Field of Study</option>
+            {fieldsOfStudy.map(f => <option key={f} value={f}>{f}</option>)}
+            <option value="Other">Other (Please specify)</option>
+          </select>
+          {form.field_of_study === "Other" && (
+            <input
+              type="text"
+              placeholder="Enter your field of study"
+              style={{ ...input, marginTop: "12px" }}
+              value={form.other_field}
+              onChange={(e) => handleOtherChange("other_field", e.target.value)}
+            />
+          )}
         </div>
 
         <div style={{ marginTop: "32px" }}>
@@ -303,14 +357,19 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
         <div style={{ marginTop: "32px" }}>
           <label style={label}>Work Experience / Background</label>
-          <textarea name="experience" value={form.experience} onChange={handleChange} style={{ ...input, minHeight: "110px" }} placeholder="Briefly describe any internships, work experience..." />
+          <textarea
+            name="experience"
+            value={form.experience}
+            onChange={handleChange}
+            style={{ ...input, minHeight: "110px" }}
+            placeholder="Briefly describe any internships, work experience..."
+          />
         </div>
 
         {/* Documents Upload */}
         <div style={{ marginTop: "40px" }}>
           <label style={label}>Upload Required Documents</label>
           <p style={{ color: "#64748b", marginBottom: "16px" }}>NRC, CV, and Academic Qualifications (PDF, JPG, PNG)</p>
-
           <div style={{ display: "grid", gap: "20px" }}>
             <div>
               <label style={label}>National Registration Card (NRC) *</label>
