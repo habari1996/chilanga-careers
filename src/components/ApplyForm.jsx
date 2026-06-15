@@ -58,9 +58,119 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     }
   };
 
-  const reviewWithAI = () => { /* Keep your full AI function here */ };
+  // File upload helper for Supabase Storage
+  const uploadFile = async (file, folder = "applications") => {
+    if (!file) return null;
 
-  const submitApplication = async () => { /* Keep your full submit function here */ };
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("applications")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage.from("applications").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  // Placeholder for future AI review feature
+  const reviewWithAI = () => {
+    alert("AI CV review feature coming soon!");
+  };
+
+  // ==================== MAIN SUBMIT FUNCTION ====================
+  const submitApplication = async () => {
+    if (!agreed) {
+      alert("Please agree to the Terms & Conditions");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Upload files if provided
+      let cvUrl = null;
+      let nrcUrl = null;
+      let qualificationsUrl = null;
+
+      if (files.cv) {
+        cvUrl = await uploadFile(files.cv, "cvs");
+      }
+      if (files.nrc) {
+        nrcUrl = await uploadFile(files.nrc, "nrc");
+      }
+      if (files.qualifications) {
+        qualificationsUrl = await uploadFile(files.qualifications, "qualifications");
+      }
+
+      // 2. Prepare data matching the applications table schema
+      const qualificationValue =
+        form.qualification === "Other" ? form.other_qualification : form.qualification;
+
+      const institutionValue =
+        form.institution === "Other" ? form.other_institution : form.institution;
+
+      const fieldValue =
+        form.field_of_study === "Other" ? form.other_field : form.field_of_study;
+
+      const applicationData = {
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        alt_phone: form.alt_phone || null,
+        dob: form.dob || null,
+        age: form.age || null,
+        gender: form.gender || null,
+        nationality: form.nationality || "Zambian",
+        qualification: qualificationValue || null,
+        institution: institutionValue,
+        field_of_study: fieldValue || null,
+        graduation_year: form.graduation_year || null,
+        skills: form.skills || null,
+        experience: form.experience || null,
+        cv_url: cvUrl,
+        nrc_url: nrcUrl,
+        qualifications_url: qualificationsUrl,
+        cv_text: form.cv_text || null,
+        job_id: form.job_id || null,
+        status: "New",
+        // Other columns in the table (address, town, province, motivation, etc.) will be NULL for now
+      };
+
+      // 3. Insert into Supabase
+      const { data, error } = await supabase
+        .from("applications")
+        .insert([applicationData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        throw error;
+      }
+
+      console.log("Application submitted successfully:", data);
+
+      // 4. Success - trigger parent callbacks
+      if (onSuccess) onSuccess();
+      if (refreshData) refreshData();
+
+    } catch (err) {
+      console.error("Submission failed:", err);
+      alert("Failed to submit application: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const qualifications = ["Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma", "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science", "Bachelor of Commerce", "Bachelor of Business Administration", "Master's Degree", "Other"];
 
