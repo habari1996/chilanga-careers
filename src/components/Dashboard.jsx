@@ -113,38 +113,18 @@ export default function Dashboard({ apps, refreshData }) {
     finally { setPostingJob(false); }
   };
 
-  // FIXED: Clean Export CSV function
   const exportCSV = () => {
-    if (!filteredApps.length) {
-      alert("No applications to export.");
-      return;
-    }
-
-    const cols = [
-      "full_name", "email", "phone", "gender", "age",
-      "qualification", "institution", "field_of_study",
-      "graduation_year", "skills", "status", "score", "created_at"
-    ];
-
+    if (!filteredApps.length) { alert("No applications to export."); return; }
+    const cols = ["full_name", "email", "phone", "gender", "age", "qualification", "institution", "field_of_study", "graduation_year", "skills", "status", "score", "created_at"];
     const header = cols.join(",");
-
-    const rows = filteredApps.map(app =>
-      cols.map(col => {
-        let val = app[col] ?? "";
-        if (typeof val === "string") val = val.replace(/"/g, '""');
-        return `"${val}"`;
-      }).join(",")
-    );
-
+    const rows = filteredApps.map(app => cols.map(col => { let val = app[col] ?? ""; if (typeof val === "string") val = val.replace(/"/g, '""'); return `"${val}"`; }).join(","));
     const csvContent = [header, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = `chilanga-applications-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
-
     URL.revokeObjectURL(url);
   };
 
@@ -253,7 +233,31 @@ export default function Dashboard({ apps, refreshData }) {
           <div style={sidebarStyle}>
             <button onClick={() => setSelectedApplicant(null)} style={closeBtn}>✕</button>
             <h3>{selectedApplicant.full_name}</h3>
-            {/* sidebar content */}
+            <p><strong>Email:</strong> {selectedApplicant.email}</p>
+            <p><strong>Phone:</strong> {selectedApplicant.phone}</p>
+            <p><strong>Gender:</strong> {selectedApplicant.gender || "—"}</p>
+            <p><strong>Age:</strong> {selectedApplicant.age || "—"}</p>
+            <p><strong>Qualification:</strong> {selectedApplicant.qualification}</p>
+            <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
+            <p><strong>Field:</strong> {selectedApplicant.field_of_study || "—"}</p>
+            <p><strong>Skills:</strong> {selectedApplicant.skills || "—"}</p>
+            <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
+            <p><strong>Status:</strong> <span style={statusBadge(selectedApplicant.status)}>{selectedApplicant.status || "New"}</span></p>
+            <p><strong>Applied:</strong> {new Date(selectedApplicant.created_at).toLocaleDateString("en-GB")} ({getTimeAgo(selectedApplicant.created_at)})</p>
+
+            {selectedApplicant.cv_url ? (
+              <div style={{ margin: "20px 0" }}>
+                <h4>📄 Resume / CV</h4>
+                <div style={resumeContainer}><iframe src={selectedApplicant.cv_url} style={iframeStyle} title="Applicant Resume" /></div>
+                <a href={selectedApplicant.cv_url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
+              </div>
+            ) : selectedApplicant.cv_text ? (
+              <div style={{ margin: "20px 0" }}>
+                <h4>📝 CV Text</h4>
+                <div style={{ background: "#f8fafc", padding: 16, borderRadius: 10, fontSize: 13, lineHeight: 1.6, maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap" }}>{selectedApplicant.cv_text}</div>
+              </div>
+            ) : <p style={{ color: "#ef4444", fontStyle: "italic" }}>No CV uploaded.</p>}
+
             <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist</button>
               <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire Candidate</button>
@@ -270,8 +274,39 @@ export default function Dashboard({ apps, refreshData }) {
         </div>
       )}
 
-      {/* Post New Job Modal */}
-      {showJobModal && ( /* modal content */ )}
+      {/* Post New Job Modal - FIXED */}
+      {showJobModal && (
+        <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
+          <div style={modalStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h3 style={{ margin: 0 }}>Post New Job</h3>
+              <button onClick={() => setShowJobModal(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div>
+              <label style={mLabel}>Job Title *</label>
+              <input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" />
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={mLabel}>Location</label>
+              <input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" />
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={mLabel}>Description *</label>
+              <textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role..." />
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+              <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
+              <button onClick={postNewJob} disabled={postingJob} style={postBtn}>
+                {postingJob ? "Posting..." : "Post Job"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
