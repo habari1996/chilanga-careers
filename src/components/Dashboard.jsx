@@ -13,13 +13,7 @@ export default function Dashboard({ apps, refreshData }) {
   const [newJob, setNewJob] = useState({
     title: "",
     location: "",
-    department: "",
-    job_type: "Full-time",
-    experience_required: "",
-    salary_range: "",
-    description: "",
-    requirements: "",
-    responsibilities: ""
+    description: ""
   });
   const [postingJob, setPostingJob] = useState(false);
 
@@ -78,7 +72,7 @@ export default function Dashboard({ apps, refreshData }) {
       if (error) throw error;
       alert("\u2705 Job posted successfully!");
       setShowJobModal(false);
-      setNewJob({ title: "", location: "", department: "", job_type: "Full-time", experience_required: "", salary_range: "", description: "", requirements: "", responsibilities: "" });
+      setNewJob({ title: "", location: "", description: "" });
       refreshData();
     } catch (err) {
       alert("Failed to post job: " + err.message);
@@ -258,43 +252,19 @@ export default function Dashboard({ apps, refreshData }) {
               <button onClick={() => setShowJobModal(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer" }}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={mLabel}>Job Title *</label>
-                <input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Mechanical Engineer — Graduate Trainee" />
-              </div>
-              <div>
-                <label style={mLabel}>Location</label>
-                <input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" />
-              </div>
-              <div>
-                <label style={mLabel}>Department</label>
-                <input name="department" style={mInput} value={newJob.department} onChange={handleJobChange} placeholder="Production" />
-              </div>
-              <div>
-                <label style={mLabel}>Job Type</label>
-                <select name="job_type" style={mInput} value={newJob.job_type} onChange={handleJobChange}>
-                  <option>Full-time</option>
-                  <option>Part-time</option>
-                  <option>Contract</option>
-                </select>
-              </div>
-              <div>
-                <label style={mLabel}>Experience Required</label>
-                <input name="experience_required" style={mInput} value={newJob.experience_required} onChange={handleJobChange} placeholder="0-2 years" />
-              </div>
-              <div>
-                <label style={mLabel}>Salary Range</label>
-                <input name="salary_range" style={mInput} value={newJob.salary_range} onChange={handleJobChange} placeholder="ZMW 8,000 - 12,000" />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={mLabel}>Description *</label>
-                <textarea name="description" style={{ ...mInput, minHeight: "80px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the graduate trainee role..." />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={mLabel}>Requirements</label>
-                <textarea name="requirements" style={{ ...mInput, minHeight: "60px" }} value={newJob.requirements} onChange={handleJobChange} placeholder="Degree in Engineering, strong analytical skills..." />
-              </div>
+            <div>
+              <label style={mLabel}>Job Title *</label>
+              <input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" />
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={mLabel}>Location</label>
+              <input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" />
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={mLabel}>Description *</label>
+              <textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role, responsibilities and requirements..." />
             </div>
 
             <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
