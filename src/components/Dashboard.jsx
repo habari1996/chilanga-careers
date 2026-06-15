@@ -193,48 +193,62 @@ export default function Dashboard({ apps, refreshData }) {
         </div>
       )}
 
-      {/* Applicant Detail Sidebar */}
+      {/* Applicant Detail Sidebar with Overlay */}
       {selectedApplicant && (
-        <div style={sidebarStyle}>
-          <button onClick={() => setSelectedApplicant(null)} style={closeBtn}>✕</button>
-          <h3 style={{ marginTop: 0 }}>{selectedApplicant.full_name}</h3>
-          <p><strong>Email:</strong> {selectedApplicant.email}</p>
-          <p><strong>Phone:</strong> {selectedApplicant.phone}</p>
-          <p><strong>Gender:</strong> {selectedApplicant.gender || "—"}</p>
-          <p><strong>Age:</strong> {selectedApplicant.age || "—"}</p>
-          <p><strong>Qualification:</strong> {selectedApplicant.qualification}</p>
-          <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
-          <p><strong>Field:</strong> {selectedApplicant.field_of_study || "—"}</p>
-          <p><strong>Skills:</strong> {selectedApplicant.skills || "—"}</p>
-          <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
-          <p><strong>Status:</strong> <span style={statusBadge(selectedApplicant.status)}>{selectedApplicant.status || "New"}</span></p>
-          <p><strong>Applied:</strong> {new Date(selectedApplicant.created_at).toLocaleDateString("en-GB")} ({getTimeAgo(selectedApplicant.created_at)})</p>
+        <>
+          {/* Overlay - click outside to close */}
+          <div 
+            onClick={() => setSelectedApplicant(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.4)",
+              zIndex: 90
+            }}
+          />
+          
+          {/* Sidebar */}
+          <div style={sidebarStyle}>
+            <button onClick={() => setSelectedApplicant(null)} style={closeBtn}>✕</button>
+            <h3 style={{ marginTop: 0 }}>{selectedApplicant.full_name}</h3>
+            <p><strong>Email:</strong> {selectedApplicant.email}</p>
+            <p><strong>Phone:</strong> {selectedApplicant.phone}</p>
+            <p><strong>Gender:</strong> {selectedApplicant.gender || "—"}</p>
+            <p><strong>Age:</strong> {selectedApplicant.age || "—"}</p>
+            <p><strong>Qualification:</strong> {selectedApplicant.qualification}</p>
+            <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
+            <p><strong>Field:</strong> {selectedApplicant.field_of_study || "—"}</p>
+            <p><strong>Skills:</strong> {selectedApplicant.skills || "—"}</p>
+            <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
+            <p><strong>Status:</strong> <span style={statusBadge(selectedApplicant.status)}>{selectedApplicant.status || "New"}</span></p>
+            <p><strong>Applied:</strong> {new Date(selectedApplicant.created_at).toLocaleDateString("en-GB")} ({getTimeAgo(selectedApplicant.created_at)})</p>
 
-          {selectedApplicant.cv_url ? (
-            <div style={{ margin: "20px 0" }}>
-              <h4 style={{ marginBottom: 10 }}>📄 Resume / CV</h4>
-              <div style={resumeContainer}>
-                <iframe src={selectedApplicant.cv_url} style={iframeStyle} title="Applicant Resume" />
+            {selectedApplicant.cv_url ? (
+              <div style={{ margin: "20px 0" }}>
+                <h4 style={{ marginBottom: 10 }}>📄 Resume / CV</h4>
+                <div style={resumeContainer}>
+                  <iframe src={selectedApplicant.cv_url} style={iframeStyle} title="Applicant Resume" />
+                </div>
+                <a href={selectedApplicant.cv_url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
               </div>
-              <a href={selectedApplicant.cv_url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
-            </div>
-          ) : selectedApplicant.cv_text ? (
-            <div style={{ margin: "20px 0" }}>
-              <h4>📝 CV Text</h4>
-              <div style={{ background: "#f8fafc", padding: 16, borderRadius: 10, fontSize: 13, lineHeight: 1.6, maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap" }}>
-                {selectedApplicant.cv_text}
+            ) : selectedApplicant.cv_text ? (
+              <div style={{ margin: "20px 0" }}>
+                <h4>📝 CV Text</h4>
+                <div style={{ background: "#f8fafc", padding: 16, borderRadius: 10, fontSize: 13, lineHeight: 1.6, maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap" }}>
+                  {selectedApplicant.cv_text}
+                </div>
               </div>
-            </div>
-          ) : (
-            <p style={{ color: "#ef4444", fontStyle: "italic" }}>No CV uploaded.</p>
-          )}
+            ) : (
+              <p style={{ color: "#ef4444", fontStyle: "italic" }}>No CV uploaded.</p>
+            )}
 
-          <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist</button>
-            <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire Candidate</button>
-            <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={rejectBtn}>Reject</button>
+            <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist</button>
+              <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire Candidate</button>
+              <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={rejectBtn}>Reject</button>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {showJobModal && (
