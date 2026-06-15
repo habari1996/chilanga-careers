@@ -4,6 +4,9 @@ import { supabase } from "../supabaseClient";
 export default function Dashboard({ apps, refreshData }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [qualificationFilter, setQualificationFilter] = useState("All");
+  const [ageMin, setAgeMin] = useState("");
+  const [ageMax, setAgeMax] = useState("");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
@@ -17,7 +20,22 @@ export default function Dashboard({ apps, refreshData }) {
   });
   const [postingJob, setPostingJob] = useState(false);
 
-  // Helper: Show relative time (e.g. "Just now", "2h ago", "Yesterday")
+  const qualificationsList = [
+    "All",
+    "Grade 12 Certificate",
+    "Certificate",
+    "Diploma",
+    "Advanced Diploma",
+    "Bachelor's Degree",
+    "Bachelor of Engineering",
+    "Bachelor of Science",
+    "Bachelor of Commerce",
+    "Bachelor of Business Administration",
+    "Master's Degree",
+    "Other"
+  ];
+
+  // Helper: Show relative time
   const getTimeAgo = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -39,10 +57,20 @@ export default function Dashboard({ apps, refreshData }) {
       const matchesSearch = !search ||
         (app.full_name?.toLowerCase().includes(search.toLowerCase()) ||
          app.email?.toLowerCase().includes(search.toLowerCase()));
+
       const matchesStatus = statusFilter === "All" || app.status === statusFilter;
-      return matchesSearch && matchesStatus;
+
+      const matchesQualification =
+        qualificationFilter === "All" ||
+        (app.qualification && app.qualification.toLowerCase().includes(qualificationFilter.toLowerCase()));
+
+      const age = parseInt(app.age);
+      const matchesAgeMin = !ageMin || (age && age >= parseInt(ageMin));
+      const matchesAgeMax = !ageMax || (age && age <= parseInt(ageMax));
+
+      return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax;
     });
-  }, [apps, search, statusFilter]);
+  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax]);
 
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
@@ -104,7 +132,6 @@ export default function Dashboard({ apps, refreshData }) {
     URL.revokeObjectURL(url);
   };
 
-  // Prominent status badge styling
   const statusBadge = (status) => {
     const base = { padding: "4px 12px", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 600 };
     if (status === "New") return { ...base, background: "#dcfce7", color: "#166534", border: "1px solid #86efac" };
@@ -125,20 +152,53 @@ export default function Dashboard({ apps, refreshData }) {
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap", alignItems: "flex-end" }}>
         <input
           placeholder="Search by name or email..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={searchInput}
+          style={{ ...searchInput, flex: 1, minWidth: 200 }}
         />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          style={selectStyle}
+        >
           <option value="All">All Status</option>
           <option value="New">New</option>
           <option value="Shortlisted">Shortlisted</option>
           <option value="Hired">Hired</option>
           <option value="Rejected">Rejected</option>
         </select>
+
+        <select
+          value={qualificationFilter}
+          onChange={(e) => { setQualificationFilter(e.target.value); setPage(1); }}
+          style={selectStyle}
+        >
+          {qualificationsList.map(q => (
+            <option key={q} value={q}>{q}</option>
+          ))}
+        </select>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="number"
+            placeholder="Min Age"
+            value={ageMin}
+            onChange={(e) => { setAgeMin(e.target.value); setPage(1); }}
+            style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }}
+          />
+          <span style={{ color: "#64748b" }}>-</span>
+          <input
+            type="number"
+            placeholder="Max Age"
+            value={ageMax}
+            onChange={(e) => { setAgeMax(e.target.value); setPage(1); }}
+            style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }}
+          />
+        </div>
       </div>
 
       {/* Applicant Cards */}
@@ -166,7 +226,7 @@ export default function Dashboard({ apps, refreshData }) {
                 </div>
                 <p style={{ margin: "2px 0", color: "#64748b", fontSize: 14 }}>{app.email}</p>
                 <p style={{ margin: "4px 0", fontSize: 14 }}>{app.qualification} — {app.institution}</p>
-                
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                   <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
                   <span style={statusBadge(app.status)}>{app.status || "New"}</span>
@@ -189,8 +249,7 @@ export default function Dashboard({ apps, refreshData }) {
       {/* Applicant Detail Sidebar with Overlay */}
       {selectedApplicant && (
         <>
-          {/* Overlay - click outside to close */}
-          <div 
+          <div
             onClick={() => setSelectedApplicant(null)}
             style={{
               position: "fixed",
@@ -199,8 +258,7 @@ export default function Dashboard({ apps, refreshData }) {
               zIndex: 90
             }}
           />
-          
-          {/* Sidebar */}
+
           <div style={sidebarStyle}>
             <button onClick={() => setSelectedApplicant(null)} style={closeBtn}>✕</button>
             <h3 style={{ marginTop: 0 }}>{selectedApplicant.full_name}</h3>
@@ -264,7 +322,7 @@ export default function Dashboard({ apps, refreshData }) {
 
             <div style={{ marginTop: 16 }}>
               <label style={mLabel}>Description *</label>
-              <textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role, responsibilities and requirements..." />
+              <textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role..." />
             </div>
 
             <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
