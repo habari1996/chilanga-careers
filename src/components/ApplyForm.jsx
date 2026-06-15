@@ -67,7 +67,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     const filePath = `${subfolder}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("cvs")           // Using your existing 'cvs' bucket
+      .from("cvs")
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: false,
@@ -103,13 +103,13 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       let qualificationsUrl = null;
 
       if (files.cv) {
-        cvUrl = await uploadFile(files.cv, "cvs");           // goes to cvs/cvs/
+        cvUrl = await uploadFile(files.cv, "cvs");
       }
       if (files.nrc) {
-        nrcUrl = await uploadFile(files.nrc, "nrc");         // goes to cvs/nrc/
+        nrcUrl = await uploadFile(files.nrc, "nrc");
       }
       if (files.qualifications) {
-        qualificationsUrl = await uploadFile(files.qualifications, "qualifications"); // goes to cvs/qualifications/
+        qualificationsUrl = await uploadFile(files.qualifications, "qualifications");
       }
 
       // 2. Prepare data matching the applications table schema
@@ -296,6 +296,37 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
             <div>
               <label style={label}>Academic Qualifications / Certificates</label>
               <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("qualifications", e)} style={input} />
+            </div>
+          </div>
+        </div>
+
+        {/* AI Coming Soon Feature */}
+        <div style={{
+          background: "#f0f9ff",
+          border: "1px solid #bae6fd",
+          borderRadius: 14,
+          padding: "20px 24px",
+          marginTop: 40
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{ fontSize: 28, marginTop: 2 }}>🤖</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <strong style={{ fontSize: "1.05rem", color: "#0c4a6e" }}>AI-Powered CV Screening</strong>
+                <span style={{
+                  background: "#bae6fd",
+                  color: "#0369a1",
+                  fontSize: "0.75rem",
+                  padding: "2px 10px",
+                  borderRadius: 9999,
+                  fontWeight: 600
+                }}>
+                  COMING SOON
+                </span>
+              </div>
+              <p style={{ margin: 0, color: "#334155", fontSize: "0.97rem", lineHeight: 1.5 }}>
+                Our AI will automatically analyze CVs, extract key skills and experience, and provide recruiters with an instant fit score and summary.
+              </p>
             </div>
           </div>
         </div>
