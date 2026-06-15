@@ -58,16 +58,16 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     }
   };
 
-  // File upload helper for Supabase Storage
-  const uploadFile = async (file, folder = "applications") => {
+  // File upload helper - uses existing 'cvs' bucket with organized subfolders
+  const uploadFile = async (file, subfolder = "uploads") => {
     if (!file) return null;
 
     const fileExt = file.name.split(".").pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
+    const filePath = `${subfolder}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("applications")
+      .from("cvs")           // Using your existing 'cvs' bucket
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: false,
@@ -78,7 +78,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
-    const { data } = supabase.storage.from("applications").getPublicUrl(filePath);
+    const { data } = supabase.storage.from("cvs").getPublicUrl(filePath);
     return data.publicUrl;
   };
 
@@ -97,19 +97,19 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     setLoading(true);
 
     try {
-      // 1. Upload files if provided
+      // 1. Upload files using the existing 'cvs' bucket
       let cvUrl = null;
       let nrcUrl = null;
       let qualificationsUrl = null;
 
       if (files.cv) {
-        cvUrl = await uploadFile(files.cv, "cvs");
+        cvUrl = await uploadFile(files.cv, "cvs");           // goes to cvs/cvs/
       }
       if (files.nrc) {
-        nrcUrl = await uploadFile(files.nrc, "nrc");
+        nrcUrl = await uploadFile(files.nrc, "nrc");         // goes to cvs/nrc/
       }
       if (files.qualifications) {
-        qualificationsUrl = await uploadFile(files.qualifications, "qualifications");
+        qualificationsUrl = await uploadFile(files.qualifications, "qualifications"); // goes to cvs/qualifications/
       }
 
       // 2. Prepare data matching the applications table schema
@@ -143,7 +143,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         cv_text: form.cv_text || null,
         job_id: form.job_id || null,
         status: "New",
-        // Other columns in the table (address, town, province, motivation, etc.) will be NULL for now
       };
 
       // 3. Insert into Supabase
@@ -160,7 +159,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
       console.log("Application submitted successfully:", data);
 
-      // 4. Success - trigger parent callbacks
+      // 4. Success
       if (onSuccess) onSuccess();
       if (refreshData) refreshData();
 
