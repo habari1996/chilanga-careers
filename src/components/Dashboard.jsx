@@ -17,7 +17,6 @@ export default function Dashboard({ apps, refreshData }) {
     job_type: "Full-time",
     experience_required: "",
     salary_range: "",
-    deadline: "",
     description: "",
     requirements: "",
     responsibilities: ""
@@ -79,7 +78,7 @@ export default function Dashboard({ apps, refreshData }) {
       if (error) throw error;
       alert("\u2705 Job posted successfully!");
       setShowJobModal(false);
-      setNewJob({ title: "", location: "", department: "", job_type: "Full-time", experience_required: "", salary_range: "", deadline: "", description: "", requirements: "", responsibilities: "" });
+      setNewJob({ title: "", location: "", department: "", job_type: "Full-time", experience_required: "", salary_range: "", description: "", requirements: "", responsibilities: "" });
       refreshData();
     } catch (err) {
       alert("Failed to post job: " + err.message);
@@ -287,10 +286,6 @@ export default function Dashboard({ apps, refreshData }) {
               <div>
                 <label style={mLabel}>Salary Range</label>
                 <input name="salary_range" style={mInput} value={newJob.salary_range} onChange={handleJobChange} placeholder="ZMW 8,000 - 12,000" />
-              </div>
-              <div>
-                <label style={mLabel}>Deadline</label>
-                <input name="deadline" type="date" style={mInput} value={newJob.deadline} onChange={handleJobChange} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={mLabel}>Description *</label>
