@@ -7,6 +7,7 @@ export default function Dashboard({ apps, refreshData }) {
   const [qualificationFilter, setQualificationFilter] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const [sortMode, setSortMode] = useState("newest"); // newest | bestMatch | name
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
@@ -35,6 +36,28 @@ export default function Dashboard({ apps, refreshData }) {
     "Other"
   ];
 
+  // Simple Best Match Scoring
+  const getBestMatchScore = (app) => {
+    let score = 0;
+
+    // Qualification scoring
+    const qual = (app.qualification || "").toLowerCase();
+    if (qual.includes("master")) score += 100;
+    else if (qual.includes("bachelor of engineering") || qual.includes("bachelor of science")) score += 85;
+    else if (qual.includes("bachelor")) score += 80;
+    else if (qual.includes("advanced diploma")) score += 65;
+    else if (qual.includes("diploma")) score += 55;
+    else if (qual.includes("certificate") || qual.includes("grade 12")) score += 40;
+    else score += 30;
+
+    // Age bonus (ideal for graduate trainee: 20-26)
+    const age = parseInt(app.age);
+    if (age && age >= 20 && age <= 26) score += 20;
+    else if (age && age >= 27 && age <= 30) score += 10;
+
+    return score;
+  };
+
   // Helper: Show relative time
   const getTimeAgo = (dateString) => {
     if (!dateString) return "";
@@ -53,7 +76,7 @@ export default function Dashboard({ apps, refreshData }) {
   };
 
   const filteredApps = useMemo(() => {
-    return apps.filter(app => {
+    let result = apps.filter(app => {
       const matchesSearch = !search ||
         (app.full_name?.toLowerCase().includes(search.toLowerCase()) ||
          app.email?.toLowerCase().includes(search.toLowerCase()));
@@ -70,7 +93,19 @@ export default function Dashboard({ apps, refreshData }) {
 
       return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax;
     });
-  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax]);
+
+    // Sorting
+    if (sortMode === "bestMatch") {
+      result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
+    } else if (sortMode === "name") {
+      result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
+    } else {
+      // newest first (default)
+      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    return result;
+  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax, sortMode]);
 
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
@@ -151,7 +186,7 @@ export default function Dashboard({ apps, refreshData }) {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters + Sort */}
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap", alignItems: "flex-end" }}>
         <input
           placeholder="Search by name or email..."
@@ -199,6 +234,16 @@ export default function Dashboard({ apps, refreshData }) {
             style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }}
           />
         </div>
+
+        <select
+          value={sortMode}
+          onChange={(e) => { setSortMode(e.target.value); setPage(1); }}
+          style={selectStyle}
+        >
+          <option value="newest">Newest First</option>
+          <option value="bestMatch">Best Match</option>
+          <option value="name">Name A-Z</option>
+        </select>
       </div>
 
       {/* Applicant Cards */}
@@ -210,6 +255,7 @@ export default function Dashboard({ apps, refreshData }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
           {paginatedApps.map(app => {
             const isNew = app.status === "New";
+            const matchScore = getBestMatchScore(app);
             return (
               <div 
                 key={app.id} 
@@ -228,7 +274,14 @@ export default function Dashboard({ apps, refreshData }) {
                 <p style={{ margin: "4px 0", fontSize: 14 }}>{app.qualification} — {app.institution}</p>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                  <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
+                  <div>
+                    <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
+                    {sortMode === "bestMatch" && (
+                      <span style={{ marginLeft: 8, fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "1px 8px", borderRadius: "9999px" }}>
+                        Match: {getBestMatchScore(app)}
+                      </span>
+                    )}
+                  </div>
                   <span style={statusBadge(app.status)}>{app.status || "New"}</span>
                 </div>
               </div>
