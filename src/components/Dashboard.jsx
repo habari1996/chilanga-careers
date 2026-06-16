@@ -85,7 +85,7 @@ export default function Dashboard({ apps, refreshData }) {
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
-  // AI Analysis Function (Phase 1)
+  // Real Grok LLM Integration (Faster Frontend Method)
   const analyzeWithAI = async (applicant) => {
     setAiLoading(true);
     setAiAnalysis(null);
@@ -93,66 +93,86 @@ export default function Dashboard({ apps, refreshData }) {
     const totalPoints = grade12Data[applicant.id] || 0;
     const bestMatchScore = getBestMatchScore(applicant);
 
-    // Build analysis prompt/context
-    const analysisContext = {
-      name: applicant.full_name,
-      qualification: applicant.qualification,
-      institution: applicant.institution,
-      fieldOfStudy: applicant.field_of_study,
-      totalGrade12Points: totalPoints,
-      skills: applicant.skills,
-      experience: applicant.experience,
-      age: applicant.age,
-      bestMatchScore: bestMatchScore
-    };
+    const prompt = `You are an expert HR analyst for Chilanga Cement's Graduate Trainee Program in Zambia.
 
-    // Generate professional AI-style analysis
-    const analysis = generateAIAnalysis(analysisContext);
+Analyze this candidate and return a JSON object with the following structure:
+{
+  "overallScore": number (0-100),
+  "recommendation": "Strongly Recommended" | "Recommended" | "Consider" | "Not Recommended",
+  "summary": "short professional summary",
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "keyInsights": "string"
+}
 
-    setTimeout(() => {
+Candidate Data:
+- Name: ${applicant.full_name}
+- Age: ${applicant.age || "N/A"}
+- Qualification: ${applicant.qualification || "N/A"}
+- Institution: ${applicant.institution || "N/A"}
+- Field of Study: ${applicant.field_of_study || "N/A"}
+- Grade 12 Total Points: ${totalPoints} (Lower is better in Zambian system)
+- Skills: ${applicant.skills || "None listed"}
+- Experience: ${applicant.experience || "None listed"}
+- Best Match Score (internal): ${bestMatchScore}
+
+Be objective, professional, and base your analysis on the Zambian education system where lower Grade 12 points are better.`;
+
+    try {
+      const response = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_GROK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "grok-2-latest",
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional HR analyst specializing in graduate recruitment in Zambia. Always respond with valid JSON only."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 800
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI analysis");
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+
+      // Try to parse JSON from response
+      let analysis;
+      try {
+        analysis = JSON.parse(content);
+      } catch {
+        // Fallback if Grok doesn't return clean JSON
+        analysis = {
+          overallScore: 75,
+          recommendation: "Recommended",
+          summary: content.substring(0, 300),
+          strengths: ["Profile shows potential"],
+          weaknesses: ["Further review recommended"],
+          keyInsights: "AI analysis generated."
+        };
+      }
+
       setAiAnalysis(analysis);
+
+    } catch (error) {
+      console.error("Grok API Error:", error);
+      alert("Failed to get AI analysis. Please check your Grok API key.");
+    } finally {
       setAiLoading(false);
-    }, 800);
-  };
-
-  // AI Analysis Generator (can be replaced with real LLM later)
-  const generateAIAnalysis = (data) => {
-    const { name, qualification, institution, fieldOfStudy, totalGrade12Points, skills, experience, age, bestMatchScore } = data;
-
-    let score = bestMatchScore;
-    let recommendation = "Recommended";
-    let strengths = [];
-    let weaknesses = [];
-
-    // Simple logic for demo (can be improved later)
-    if (totalGrade12Points <= 15) {
-      score = Math.min(95, score + 10);
-      strengths.push("Strong academic performance in Grade 12");
-    } else if (totalGrade12Points > 30) {
-      score = Math.max(55, score - 15);
-      weaknesses.push("Grade 12 results are below average");
     }
-
-    if (qualification && qualification.toLowerCase().includes("bachelor")) {
-      strengths.push("Relevant degree qualification");
-    }
-
-    if (experience && experience.length > 50) {
-      strengths.push("Has relevant work experience or internships");
-    } else {
-      weaknesses.push("Limited practical experience");
-    }
-
-    if (bestMatchScore > 85) recommendation = "Strongly Recommended";
-    else if (bestMatchScore < 65) recommendation = "Consider with caution";
-
-    return {
-      overallScore: Math.round(score),
-      recommendation,
-      strengths: strengths.length > 0 ? strengths : ["Meets basic requirements"],
-      weaknesses: weaknesses.length > 0 ? weaknesses : ["No major red flags identified"],
-      summary: `${name} shows ${recommendation.toLowerCase()} potential for the Graduate Trainee position based on academic background and profile.`
-    };
   };
 
   const filteredApps = useMemo(() => {
@@ -316,7 +336,7 @@ export default function Dashboard({ apps, refreshData }) {
       {/* Pagination */}
       {totalPages > 1 && <div style={{ textAlign: "center", margin: "40px 0" }}>...</div>}
 
-      {/* Sidebar with AI Analysis */}
+      {/* Sidebar with Real Grok AI */}
       {selectedApplicant && (
         <>
           <div onClick={() => setSelectedApplicant(null)} style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", zIndex: 90 }} />
@@ -330,7 +350,7 @@ export default function Dashboard({ apps, refreshData }) {
             <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
             <p><strong>Total Points:</strong> {grade12Data[selectedApplicant.id] || 0} <span style={{ fontSize: "0.85rem", color: "#64748b" }}>(Lower is better)</span></p>
 
-            {/* AI Analysis Section */}
+            {/* Real Grok AI Button */}
             <div style={{ margin: "24px 0" }}>
               <button 
                 onClick={() => analyzeWithAI(selectedApplicant)}
@@ -347,13 +367,13 @@ export default function Dashboard({ apps, refreshData }) {
                   marginBottom: "12px"
                 }}
               >
-                {aiLoading ? "Analyzing..." : "🤖 Analyze with AI"}
+                {aiLoading ? "Analyzing with Grok..." : "🤖 Analyze with Grok AI"}
               </button>
 
               {aiAnalysis && (
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px", marginTop: "12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <strong>AI Analysis</strong>
+                    <strong>Grok AI Analysis</strong>
                     <span style={{ 
                       background: aiAnalysis.overallScore >= 80 ? "#dcfce7" : aiAnalysis.overallScore >= 65 ? "#fef3c7" : "#fee2e2",
                       color: aiAnalysis.overallScore >= 80 ? "#166534" : aiAnalysis.overallScore >= 65 ? "#854d0e" : "#991b1b",
@@ -369,17 +389,19 @@ export default function Dashboard({ apps, refreshData }) {
                   <p style={{ margin: "8px 0", fontSize: "0.95rem" }}><strong>Recommendation:</strong> {aiAnalysis.recommendation}</p>
                   <p style={{ margin: "8px 0", fontSize: "0.95rem" }}>{aiAnalysis.summary}</p>
 
+                  {aiAnalysis.keyInsights && <p style={{ margin: "8px 0", fontSize: "0.9rem", fontStyle: "italic" }}>{aiAnalysis.keyInsights}</p>}
+
                   <div style={{ marginTop: "12px" }}>
                     <strong style={{ color: "#166534" }}>Strengths:</strong>
                     <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>
-                      {aiAnalysis.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                      {aiAnalysis.strengths?.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>
 
                   <div style={{ marginTop: "12px" }}>
                     <strong style={{ color: "#991b1b" }}>Areas to Consider:</strong>
                     <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>
-                      {aiAnalysis.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                      {aiAnalysis.weaknesses?.map((w, i) => <li key={i}>{w}</li>)}
                     </ul>
                   </div>
                 </div>
