@@ -20,6 +20,10 @@ export default function Dashboard({ apps, refreshData }) {
   const [toast, setToast] = useState({ show: false, message: "" });
   const [grade12Data, setGrade12Data] = useState({});
 
+  // AI Analysis State
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
   const showToast = (message) => {
     setToast({ show: true, message });
     setTimeout(() => setToast({ show: false, message: "" }), 3500);
@@ -81,6 +85,76 @@ export default function Dashboard({ apps, refreshData }) {
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
+  // AI Analysis Function (Phase 1)
+  const analyzeWithAI = async (applicant) => {
+    setAiLoading(true);
+    setAiAnalysis(null);
+
+    const totalPoints = grade12Data[applicant.id] || 0;
+    const bestMatchScore = getBestMatchScore(applicant);
+
+    // Build analysis prompt/context
+    const analysisContext = {
+      name: applicant.full_name,
+      qualification: applicant.qualification,
+      institution: applicant.institution,
+      fieldOfStudy: applicant.field_of_study,
+      totalGrade12Points: totalPoints,
+      skills: applicant.skills,
+      experience: applicant.experience,
+      age: applicant.age,
+      bestMatchScore: bestMatchScore
+    };
+
+    // Generate professional AI-style analysis
+    const analysis = generateAIAnalysis(analysisContext);
+
+    setTimeout(() => {
+      setAiAnalysis(analysis);
+      setAiLoading(false);
+    }, 800);
+  };
+
+  // AI Analysis Generator (can be replaced with real LLM later)
+  const generateAIAnalysis = (data) => {
+    const { name, qualification, institution, fieldOfStudy, totalGrade12Points, skills, experience, age, bestMatchScore } = data;
+
+    let score = bestMatchScore;
+    let recommendation = "Recommended";
+    let strengths = [];
+    let weaknesses = [];
+
+    // Simple logic for demo (can be improved later)
+    if (totalGrade12Points <= 15) {
+      score = Math.min(95, score + 10);
+      strengths.push("Strong academic performance in Grade 12");
+    } else if (totalGrade12Points > 30) {
+      score = Math.max(55, score - 15);
+      weaknesses.push("Grade 12 results are below average");
+    }
+
+    if (qualification && qualification.toLowerCase().includes("bachelor")) {
+      strengths.push("Relevant degree qualification");
+    }
+
+    if (experience && experience.length > 50) {
+      strengths.push("Has relevant work experience or internships");
+    } else {
+      weaknesses.push("Limited practical experience");
+    }
+
+    if (bestMatchScore > 85) recommendation = "Strongly Recommended";
+    else if (bestMatchScore < 65) recommendation = "Consider with caution";
+
+    return {
+      overallScore: Math.round(score),
+      recommendation,
+      strengths: strengths.length > 0 ? strengths : ["Meets basic requirements"],
+      weaknesses: weaknesses.length > 0 ? weaknesses : ["No major red flags identified"],
+      summary: `${name} shows ${recommendation.toLowerCase()} potential for the Graduate Trainee position based on academic background and profile.`
+    };
+  };
+
   const filteredApps = useMemo(() => {
     let result = apps.filter(app => {
       const matchesSearch = !search || (app.full_name?.toLowerCase().includes(search.toLowerCase()) || app.email?.toLowerCase().includes(search.toLowerCase()));
@@ -97,7 +171,7 @@ export default function Dashboard({ apps, refreshData }) {
     if (sortMode === "bestMatch") {
       result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
     } else if (sortMode === "points") {
-      result.sort((a, b) => (grade12Data[a.id] || 0) - (grade12Data[b.id] || 0)); // Lower points first (better)
+      result.sort((a, b) => (grade12Data[a.id] || 0) - (grade12Data[b.id] || 0));
     } else if (sortMode === "name") {
       result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
     } else {
@@ -230,7 +304,6 @@ export default function Dashboard({ apps, refreshData }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
                     <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>Points: {totalPoints}</span>
-                    {sortMode === "bestMatch" && <span style={{ fontSize: "12px", background: "#bae6fd", color: "#0369a1", padding: "2px 10px", borderRadius: "9999px", fontWeight: 600 }}>Match: {matchScore}</span>}
                   </div>
                   <span style={statusBadge(app.status)}>{app.status || "New"}</span>
                 </div>
@@ -243,25 +316,75 @@ export default function Dashboard({ apps, refreshData }) {
       {/* Pagination */}
       {totalPages > 1 && <div style={{ textAlign: "center", margin: "40px 0" }}>...</div>}
 
-      {/* Sidebar */}
+      {/* Sidebar with AI Analysis */}
       {selectedApplicant && (
         <>
           <div onClick={() => setSelectedApplicant(null)} style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", zIndex: 90 }} />
           <div style={sidebarStyle}>
-            <button onClick={() => setSelectedApplicant(null)} style={closeBtn}>✕</button>
+            <button onClick={() => { setSelectedApplicant(null); setAiAnalysis(null); }} style={closeBtn}>✕</button>
             <h3>{selectedApplicant.full_name}</h3>
             <p><strong>Email:</strong> {selectedApplicant.email}</p>
             <p><strong>Phone:</strong> {selectedApplicant.phone}</p>
-            <p><strong>Gender:</strong> {selectedApplicant.gender || "—"}</p>
             <p><strong>Age:</strong> {selectedApplicant.age || "—"}</p>
             <p><strong>Qualification:</strong> {selectedApplicant.qualification}</p>
             <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
-            <p><strong>Field:</strong> {selectedApplicant.field_of_study || "—"}</p>
-            <p><strong>Skills:</strong> {selectedApplicant.skills || "—"}</p>
-            <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
-            <p><strong>Status:</strong> <span style={statusBadge(selectedApplicant.status)}>{selectedApplicant.status || "New"}</span></p>
-            <p><strong>Applied:</strong> {new Date(selectedApplicant.created_at).toLocaleDateString("en-GB")} ({getTimeAgo(selectedApplicant.created_at)})</p>
             <p><strong>Total Points:</strong> {grade12Data[selectedApplicant.id] || 0} <span style={{ fontSize: "0.85rem", color: "#64748b" }}>(Lower is better)</span></p>
+
+            {/* AI Analysis Section */}
+            <div style={{ margin: "24px 0" }}>
+              <button 
+                onClick={() => analyzeWithAI(selectedApplicant)}
+                disabled={aiLoading}
+                style={{ 
+                  width: "100%", 
+                  padding: "12px", 
+                  background: "#0f172a", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: 10, 
+                  fontWeight: 600, 
+                  cursor: "pointer",
+                  marginBottom: "12px"
+                }}
+              >
+                {aiLoading ? "Analyzing..." : "🤖 Analyze with AI"}
+              </button>
+
+              {aiAnalysis && (
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px", marginTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <strong>AI Analysis</strong>
+                    <span style={{ 
+                      background: aiAnalysis.overallScore >= 80 ? "#dcfce7" : aiAnalysis.overallScore >= 65 ? "#fef3c7" : "#fee2e2",
+                      color: aiAnalysis.overallScore >= 80 ? "#166534" : aiAnalysis.overallScore >= 65 ? "#854d0e" : "#991b1b",
+                      padding: "2px 10px", 
+                      borderRadius: "9999px", 
+                      fontSize: "0.85rem", 
+                      fontWeight: 600 
+                    }}>
+                      Score: {aiAnalysis.overallScore}
+                    </span>
+                  </div>
+
+                  <p style={{ margin: "8px 0", fontSize: "0.95rem" }}><strong>Recommendation:</strong> {aiAnalysis.recommendation}</p>
+                  <p style={{ margin: "8px 0", fontSize: "0.95rem" }}>{aiAnalysis.summary}</p>
+
+                  <div style={{ marginTop: "12px" }}>
+                    <strong style={{ color: "#166534" }}>Strengths:</strong>
+                    <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>
+                      {aiAnalysis.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+
+                  <div style={{ marginTop: "12px" }}>
+                    <strong style={{ color: "#991b1b" }}>Areas to Consider:</strong>
+                    <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>
+                      {aiAnalysis.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {selectedApplicant.cv_url ? (
               <div style={{ margin: "20px 0" }}>
@@ -293,7 +416,7 @@ export default function Dashboard({ apps, refreshData }) {
       )}
 
       {/* Post New Job Modal */}
-      {showJobModal && ( /* ... */ )}
+      {showJobModal && ( /* modal */ )}
     </div>
   );
 }
