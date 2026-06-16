@@ -20,7 +20,6 @@ export default function Dashboard({ apps, refreshData }) {
   const [toast, setToast] = useState({ show: false, message: "" });
   const [grade12Data, setGrade12Data] = useState({});
 
-  // AI Analysis State
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -85,7 +84,6 @@ export default function Dashboard({ apps, refreshData }) {
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
-  // Real Grok LLM Integration (Faster Frontend Method)
   const analyzeWithAI = async (applicant) => {
     setAiLoading(true);
     setAiAnalysis(null);
@@ -128,33 +126,23 @@ Be objective, professional, and base your analysis on the Zambian education syst
         body: JSON.stringify({
           model: "grok-2-latest",
           messages: [
-            {
-              role: "system",
-              content: "You are a professional HR analyst specializing in graduate recruitment in Zambia. Always respond with valid JSON only."
-            },
-            {
-              role: "user",
-              content: prompt
-            }
+            { role: "system", content: "You are a professional HR analyst specializing in graduate recruitment in Zambia. Always respond with valid JSON only." },
+            { role: "user", content: prompt }
           ],
           temperature: 0.3,
           max_tokens: 800
         })
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to get AI analysis");
-      }
+      if (!response.ok) throw new Error("Failed to get AI analysis");
 
       const data = await response.json();
       const content = data.choices[0].message.content;
 
-      // Try to parse JSON from response
       let analysis;
       try {
         analysis = JSON.parse(content);
       } catch {
-        // Fallback if Grok doesn't return clean JSON
         analysis = {
           overallScore: 75,
           recommendation: "Recommended",
@@ -164,7 +152,6 @@ Be objective, professional, and base your analysis on the Zambian education syst
           keyInsights: "AI analysis generated."
         };
       }
-
       setAiAnalysis(analysis);
 
     } catch (error) {
@@ -336,7 +323,7 @@ Be objective, professional, and base your analysis on the Zambian education syst
       {/* Pagination */}
       {totalPages > 1 && <div style={{ textAlign: "center", margin: "40px 0" }}>...</div>}
 
-      {/* Sidebar with Real Grok AI */}
+      {/* Sidebar */}
       {selectedApplicant && (
         <>
           <div onClick={() => setSelectedApplicant(null)} style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", zIndex: 90 }} />
@@ -350,23 +337,8 @@ Be objective, professional, and base your analysis on the Zambian education syst
             <p><strong>Institution:</strong> {selectedApplicant.institution}</p>
             <p><strong>Total Points:</strong> {grade12Data[selectedApplicant.id] || 0} <span style={{ fontSize: "0.85rem", color: "#64748b" }}>(Lower is better)</span></p>
 
-            {/* Real Grok AI Button */}
             <div style={{ margin: "24px 0" }}>
-              <button 
-                onClick={() => analyzeWithAI(selectedApplicant)}
-                disabled={aiLoading}
-                style={{ 
-                  width: "100%", 
-                  padding: "12px", 
-                  background: "#0f172a", 
-                  color: "white", 
-                  border: "none", 
-                  borderRadius: 10, 
-                  fontWeight: 600, 
-                  cursor: "pointer",
-                  marginBottom: "12px"
-                }}
-              >
+              <button onClick={() => analyzeWithAI(selectedApplicant)} disabled={aiLoading} style={{ width: "100%", padding: "12px", background: "#0f172a", color: "white", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer", marginBottom: "12px" }}>
                 {aiLoading ? "Analyzing with Grok..." : "🤖 Analyze with Grok AI"}
               </button>
 
@@ -374,35 +346,20 @@ Be objective, professional, and base your analysis on the Zambian education syst
                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px", marginTop: "12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                     <strong>Grok AI Analysis</strong>
-                    <span style={{ 
-                      background: aiAnalysis.overallScore >= 80 ? "#dcfce7" : aiAnalysis.overallScore >= 65 ? "#fef3c7" : "#fee2e2",
-                      color: aiAnalysis.overallScore >= 80 ? "#166534" : aiAnalysis.overallScore >= 65 ? "#854d0e" : "#991b1b",
-                      padding: "2px 10px", 
-                      borderRadius: "9999px", 
-                      fontSize: "0.85rem", 
-                      fontWeight: 600 
-                    }}>
+                    <span style={{ background: aiAnalysis.overallScore >= 80 ? "#dcfce7" : aiAnalysis.overallScore >= 65 ? "#fef3c7" : "#fee2e2", color: aiAnalysis.overallScore >= 80 ? "#166534" : aiAnalysis.overallScore >= 65 ? "#854d0e" : "#991b1b", padding: "2px 10px", borderRadius: "9999px", fontSize: "0.85rem", fontWeight: 600 }}>
                       Score: {aiAnalysis.overallScore}
                     </span>
                   </div>
-
                   <p style={{ margin: "8px 0", fontSize: "0.95rem" }}><strong>Recommendation:</strong> {aiAnalysis.recommendation}</p>
                   <p style={{ margin: "8px 0", fontSize: "0.95rem" }}>{aiAnalysis.summary}</p>
-
                   {aiAnalysis.keyInsights && <p style={{ margin: "8px 0", fontSize: "0.9rem", fontStyle: "italic" }}>{aiAnalysis.keyInsights}</p>}
-
                   <div style={{ marginTop: "12px" }}>
                     <strong style={{ color: "#166534" }}>Strengths:</strong>
-                    <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>
-                      {aiAnalysis.strengths?.map((s, i) => <li key={i}>{s}</li>)}
-                    </ul>
+                    <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>{aiAnalysis.strengths?.map((s, i) => <li key={i}>{s}</li>)}</ul>
                   </div>
-
                   <div style={{ marginTop: "12px" }}>
                     <strong style={{ color: "#991b1b" }}>Areas to Consider:</strong>
-                    <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>
-                      {aiAnalysis.weaknesses?.map((w, i) => <li key={i}>{w}</li>)}
-                    </ul>
+                    <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: "0.9rem" }}>{aiAnalysis.weaknesses?.map((w, i) => <li key={i}>{w}</li>)}</ul>
                   </div>
                 </div>
               )}
@@ -437,8 +394,24 @@ Be objective, professional, and base your analysis on the Zambian education syst
         </div>
       )}
 
-      {/* Post New Job Modal */}
-      {showJobModal && ( /* modal */ )}
+      {/* Post New Job Modal - FIXED */}
+      {showJobModal && (
+        <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
+          <div style={modalStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h3 style={{ margin: 0 }}>Post New Job</h3>
+              <button onClick={() => setShowJobModal(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer" }}>✕</button>
+            </div>
+            <div><label style={mLabel}>Job Title *</label><input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" /></div>
+            <div style={{ marginTop: 16 }}><label style={mLabel}>Location</label><input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" /></div>
+            <div style={{ marginTop: 16 }}><label style={mLabel}>Description *</label><textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role..." /></div>
+            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+              <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
+              <button onClick={postNewJob} disabled={postingJob} style={postBtn}>{postingJob ? "Posting..." : "Post Job"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
