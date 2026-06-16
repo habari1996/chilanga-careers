@@ -10,14 +10,26 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     other_institution: "", other_qualification: "", other_field: ""
   });
 
-  const [files, setFiles] = useState({ nrc: null, cv: null, qualifications: null });
-  const [aiReview, setAiReview] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [files, setFiles] = useState({ nrc: null, cv: null, qualifications: null, tertiary: null });
+
+  // Grade 12 Results State
+  const [grade12Subjects, setGrade12Subjects] = useState([
+    { subject: "", grade: "", points: 0 }
+  ]);
+
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [jobTitle, setJobTitle] = useState("Graduate Trainee Application — Step Up Program 2026");
 
-  // Job ID
+  // Grade to Points mapping (Zambian standard)
+  const gradeToPoints = {
+    "A": 12, "B": 10, "C": 8, "D": 6, "E": 4, "F": 2, "O": 0
+  };
+
+  // Calculate total points
+  const totalPoints = grade12Subjects.reduce((sum, item) => sum + (item.points || 0), 0);
+
+  // Job ID handling
   useEffect(() => {
     let jobId = initialJobId;
     if (!jobId) {
@@ -58,36 +70,45 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     }
   };
 
-  // File upload helper - uses existing 'cvs' bucket with organized subfolders
+  // Grade 12 Subject Handlers
+  const addGrade12Subject = () => {
+    setGrade12Subjects([...grade12Subjects, { subject: "", grade: "", points: 0 }]);
+  };
+
+  const removeGrade12Subject = (index) => {
+    if (grade12Subjects.length === 1) return; // Keep at least one row
+    const updated = grade12Subjects.filter((_, i) => i !== index);
+    setGrade12Subjects(updated);
+  };
+
+  const updateGrade12Subject = (index, field, value) => {
+    const updated = [...grade12Subjects];
+    updated[index][field] = value;
+
+    if (field === "grade") {
+      updated[index].points = gradeToPoints[value.toUpperCase()] || 0;
+    }
+    setGrade12Subjects(updated);
+  };
+
+  // File upload helper
   const uploadFile = async (file, subfolder = "uploads") => {
     if (!file) return null;
-
     const fileExt = file.name.split(".").pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     const filePath = `${subfolder}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("cvs")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
+      .upload(filePath, file, { cacheControl: "3600", upsert: false });
 
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      throw new Error(`Failed to upload file: ${uploadError.message}`);
-    }
+    if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
 
     const { data } = supabase.storage.from("cvs").getPublicUrl(filePath);
     return data.publicUrl;
   };
 
-  // Placeholder for future AI review feature
-  const reviewWithAI = () => {
-    alert("AI CV review feature coming soon!");
-  };
-
-  // ==================== MAIN SUBMIT FUNCTION ====================
+  // Main Submit Function
   const submitApplication = async () => {
     if (!agreed) {
       alert("Please agree to the Terms & Conditions");
@@ -97,30 +118,21 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     setLoading(true);
 
     try {
-      // 1. Upload files using the existing 'cvs' bucket
+      // 1. Upload files
       let cvUrl = null;
       let nrcUrl = null;
       let qualificationsUrl = null;
+      let tertiaryUrl = null;
 
-      if (files.cv) {
-        cvUrl = await uploadFile(files.cv, "cvs");
-      }
-      if (files.nrc) {
-        nrcUrl = await uploadFile(files.nrc, "nrc");
-      }
-      if (files.qualifications) {
-        qualificationsUrl = await uploadFile(files.qualifications, "qualifications");
-      }
+      if (files.cv) cvUrl = await uploadFile(files.cv, "cvs");
+      if (files.nrc) nrcUrl = await uploadFile(files.nrc, "nrc");
+      if (files.qualifications) qualificationsUrl = await uploadFile(files.qualifications, "qualifications");
+      if (files.tertiary) tertiaryUrl = await uploadFile(files.tertiary, "tertiary");
 
-      // 2. Prepare data matching the applications table schema
-      const qualificationValue =
-        form.qualification === "Other" ? form.other_qualification : form.qualification;
-
-      const institutionValue =
-        form.institution === "Other" ? form.other_institution : form.institution;
-
-      const fieldValue =
-        form.field_of_study === "Other" ? form.other_field : form.field_of_study;
+      // 2. Prepare application data
+      const qualificationValue = form.qualification === "Other" ? form.other_qualification : form.qualification;
+      const institutionValue = form.institution === "Other" ? form.other_institution : form.institution;
+      const fieldValue = form.field_of_study === "Other" ? form.other_field : form.field_of_study;
 
       const applicationData = {
         full_name: form.full_name,
@@ -140,26 +152,40 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         cv_url: cvUrl,
         nrc_url: nrcUrl,
         qualifications_url: qualificationsUrl,
+        tertiary_certificate_url: tertiaryUrl,
         cv_text: form.cv_text || null,
         job_id: form.job_id || null,
         status: "New",
       };
 
-      // 3. Insert into Supabase
-      const { data, error } = await supabase
+      // 3. Insert Application
+      const { data: appData, error: appError } = await supabase
         .from("applications")
         .insert([applicationData])
         .select()
         .single();
 
-      if (error) {
-        console.error("Supabase insert error:", error);
-        throw error;
+      if (appError) throw appError;
+
+      // 4. Insert Grade 12 Results
+      const grade12Rows = grade12Subjects
+        .filter(s => s.subject && s.grade)
+        .map(s => ({
+          application_id: appData.id,
+          subject: s.subject,
+          grade: s.grade.toUpperCase(),
+          points: s.points || 0
+        }));
+
+      if (grade12Rows.length > 0) {
+        const { error: gradeError } = await supabase
+          .from("grade12_results")
+          .insert(grade12Rows);
+
+        if (gradeError) throw gradeError;
       }
 
-      console.log("Application submitted successfully:", data);
-
-      // 4. Success
+      // 5. Success
       if (onSuccess) onSuccess();
       if (refreshData) refreshData();
 
@@ -188,53 +214,25 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           <p style={{ color: "#64748b" }}>Chilanga Cement PLC • Step Up Program 2026</p>
         </div>
 
+        {/* Personal Information */}
         <div style={twoCol}>
-          <div>
-            <label style={label}>Full Name *</label>
-            <input name="full_name" style={input} value={form.full_name} onChange={handleChange} required />
-          </div>
-          <div>
-            <label style={label}>Email Address *</label>
-            <input name="email" type="email" style={input} value={form.email} onChange={handleChange} required />
-          </div>
-          <div>
-            <label style={label}>Phone Number *</label>
-            <input name="phone" style={input} value={form.phone} onChange={handleChange} placeholder="0977 123 456" required />
-          </div>
-          <div>
-            <label style={label}>Alternative Phone</label>
-            <input name="alt_phone" style={input} value={form.alt_phone} onChange={handleChange} />
-          </div>
+          <div><label style={label}>Full Name *</label><input name="full_name" style={input} value={form.full_name} onChange={handleChange} required /></div>
+          <div><label style={label}>Email Address *</label><input name="email" type="email" style={input} value={form.email} onChange={handleChange} required /></div>
+          <div><label style={label}>Phone Number *</label><input name="phone" style={input} value={form.phone} onChange={handleChange} placeholder="0977 123 456" required /></div>
+          <div><label style={label}>Alternative Phone</label><input name="alt_phone" style={input} value={form.alt_phone} onChange={handleChange} /></div>
         </div>
 
         <div style={{ ...twoCol, marginTop: "32px" }}>
-          <div>
-            <label style={label}>Date of Birth</label>
-            <input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} />
-          </div>
-          <div>
-            <label style={label}>Age</label>
-            <input name="age" style={{ ...input, background: "#f8fafc" }} value={form.age} readOnly />
-          </div>
+          <div><label style={label}>Date of Birth</label><input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} /></div>
+          <div><label style={label}>Age</label><input name="age" style={{ ...input, background: "#f8fafc" }} value={form.age} readOnly /></div>
         </div>
 
         <div style={{ ...twoCol, marginTop: "32px" }}>
-          <div>
-            <label style={label}>Gender</label>
-            <select name="gender" style={input} value={form.gender} onChange={handleChange}>
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
-          </div>
-          <div>
-            <label style={label}>Nationality</label>
-            <input name="nationality" style={input} value={form.nationality} onChange={handleChange} />
-          </div>
+          <div><label style={label}>Gender</label><select name="gender" style={input} value={form.gender} onChange={handleChange}><option value="">Select Gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Prefer not to say">Prefer not to say</option></select></div>
+          <div><label style={label}>Nationality</label><input name="nationality" style={input} value={form.nationality} onChange={handleChange} /></div>
         </div>
 
-        {/* Qualification with Other */}
+        {/* Qualification & Institution */}
         <div style={{ marginTop: "32px" }}>
           <label style={label}>Highest Qualification *</label>
           <select name="qualification" style={input} value={form.qualification} onChange={handleChange} required>
@@ -245,7 +243,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           {form.qualification === "Other" && <input type="text" placeholder="Enter qualification" style={{...input, marginTop: "12px"}} value={form.other_qualification} onChange={(e) => handleOtherChange("other_qualification", e.target.value)} required />}
         </div>
 
-        {/* Institution with Other */}
         <div style={{ marginTop: "32px" }}>
           <label style={label}>Institution / University *</label>
           <select name="institution" style={input} value={form.institution} onChange={handleChange} required>
@@ -256,7 +253,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           {form.institution === "Other" && <input type="text" placeholder="Enter institution" style={{...input, marginTop: "12px"}} value={form.other_institution} onChange={(e) => handleOtherChange("other_institution", e.target.value)} required />}
         </div>
 
-        {/* Field of Study with Other */}
         <div style={{ marginTop: "32px" }}>
           <label style={label}>Field of Study</label>
           <select name="field_of_study" style={input} value={form.field_of_study} onChange={handleChange}>
@@ -267,62 +263,58 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           {form.field_of_study === "Other" && <input type="text" placeholder="Enter field of study" style={{...input, marginTop: "12px"}} value={form.other_field} onChange={(e) => handleOtherChange("other_field", e.target.value)} />}
         </div>
 
-        <div style={{ marginTop: "32px" }}>
-          <label style={label}>Key Skills</label>
-          <input name="skills" style={input} value={form.skills} onChange={handleChange} placeholder="AutoCAD, Excel, Python..." />
-          <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {commonSkills.map(skill => <button key={skill} type="button" onClick={() => addSkill(skill)} style={skillBtn}>+ {skill}</button>)}
+        {/* Grade 12 Results Section */}
+        <div style={{ marginTop: "40px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <label style={label}>Grade 12 Results (for Total Points calculation)</label>
+            <button type="button" onClick={addGrade12Subject} style={{ padding: "6px 14px", background: "#0f172a", color: "white", border: "none", borderRadius: 8, fontSize: "0.9rem", cursor: "pointer" }}>+ Add Subject</button>
+          </div>
+
+          {grade12Subjects.map((item, index) => (
+            <div key={index} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
+              <input
+                placeholder="Subject (e.g. Mathematics)"
+                value={item.subject}
+                onChange={(e) => updateGrade12Subject(index, "subject", e.target.value)}
+                style={input}
+              />
+              <select
+                value={item.grade}
+                onChange={(e) => updateGrade12Subject(index, "grade", e.target.value)}
+                style={input}
+              >
+                <option value="">Grade</option>
+                {Object.keys(gradeToPoints).map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <input value={item.points} readOnly style={{ ...input, background: "#f8fafc" }} />
+              <button type="button" onClick={() => removeGrade12Subject(index)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+            </div>
+          ))}
+
+          <div style={{ marginTop: "8px", fontWeight: 600, color: "#0f172a" }}>
+            Total Points: <span style={{ fontSize: "1.3rem" }}>{totalPoints}</span>
           </div>
         </div>
 
-        <div style={{ marginTop: "32px" }}>
-          <label style={label}>Work Experience / Background</label>
-          <textarea name="experience" value={form.experience} onChange={handleChange} style={{ ...input, minHeight: "110px" }} placeholder="Briefly describe any internships..." />
-        </div>
-
-        {/* Documents */}
+        {/* Documents Upload */}
         <div style={{ marginTop: "40px" }}>
           <label style={label}>Upload Required Documents</label>
-          <p style={{ color: "#64748b", marginBottom: "16px" }}>NRC, CV, and Academic Qualifications</p>
-          <div style={{ display: "grid", gap: "20px" }}>
-            <div>
-              <label style={label}>National Registration Card (NRC) *</label>
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("nrc", e)} style={input} />
-            </div>
-            <div>
-              <label style={label}>Curriculum Vitae (CV / Resume) *</label>
-              <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange("cv", e)} style={input} />
-            </div>
-            <div>
-              <label style={label}>Academic Qualifications / Certificates</label>
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("qualifications", e)} style={input} />
-            </div>
+          <div style={{ display: "grid", gap: "20px", marginTop: "12px" }}>
+            <div><label style={label}>National Registration Card (NRC) *</label><input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("nrc", e)} style={input} /></div>
+            <div><label style={label}>Curriculum Vitae (CV / Resume) *</label><input type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange("cv", e)} style={input} /></div>
+            <div><label style={label}>Academic Qualifications / Certificates</label><input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("qualifications", e)} style={input} /></div>
+            <div><label style={label}>Tertiary Education Certificate</label><input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("tertiary", e)} style={input} /></div>
           </div>
         </div>
 
-        {/* AI Coming Soon Feature */}
-        <div style={{
-          background: "#f0f9ff",
-          border: "1px solid #bae6fd",
-          borderRadius: 14,
-          padding: "20px 24px",
-          marginTop: 40
-        }}>
+        {/* AI Coming Soon */}
+        <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 14, padding: "20px 24px", marginTop: 40 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
             <div style={{ fontSize: 28, marginTop: 2 }}>🤖</div>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                 <strong style={{ fontSize: "1.05rem", color: "#0c4a6e" }}>AI-Powered CV Screening</strong>
-                <span style={{
-                  background: "#bae6fd",
-                  color: "#0369a1",
-                  fontSize: "0.75rem",
-                  padding: "2px 10px",
-                  borderRadius: 9999,
-                  fontWeight: 600
-                }}>
-                  COMING SOON
-                </span>
+                <span style={{ background: "#bae6fd", color: "#0369a1", fontSize: "0.75rem", padding: "2px 10px", borderRadius: 9999, fontWeight: 600 }}>COMING SOON</span>
               </div>
               <p style={{ margin: 0, color: "#334155", fontSize: "0.97rem", lineHeight: 1.5 }}>
                 Our AI will automatically analyze CVs, extract key skills and experience, and provide recruiters with an instant fit score and summary.
@@ -346,7 +338,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   );
 }
 
-// ====================== STYLES ======================
+// Styles
 const label = { display: "block", marginBottom: "8px", fontWeight: "600", color: "#374151" };
 const input = { width: "100%", padding: "16px", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "1rem", boxSizing: "border-box" };
 const twoCol = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" };
