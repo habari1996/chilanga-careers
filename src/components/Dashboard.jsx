@@ -84,6 +84,7 @@ export default function Dashboard({ apps, refreshData }) {
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
+  // Grok API Integration
   const analyzeWithAI = async (applicant) => {
     setAiLoading(true);
     setAiAnalysis(null);
@@ -124,7 +125,7 @@ Be objective, professional, and base your analysis on the Zambian education syst
           "Authorization": `Bearer ${import.meta.env.VITE_GROK_API_KEY}`
         },
         body: JSON.stringify({
-          model: "grok-2-latest",
+          model: "grok-beta",
           messages: [
             { role: "system", content: "You are a professional HR analyst specializing in graduate recruitment in Zambia. Always respond with valid JSON only." },
             { role: "user", content: prompt }
@@ -394,7 +395,7 @@ Be objective, professional, and base your analysis on the Zambian education syst
         </div>
       )}
 
-      {/* Post New Job Modal - FIXED */}
+      {/* Post New Job Modal */}
       {showJobModal && (
         <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
           <div style={modalStyle}>
