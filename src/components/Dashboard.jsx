@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 
 export default function Dashboard({ apps, refreshData }) {
@@ -7,6 +7,7 @@ export default function Dashboard({ apps, refreshData }) {
   const [qualificationFilter, setQualificationFilter] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const [minPoints, setMinPoints] = useState("");
   const [sortMode, setSortMode] = useState("newest");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [page, setPage] = useState(1);
@@ -17,11 +18,41 @@ export default function Dashboard({ apps, refreshData }) {
   const [postingJob, setPostingJob] = useState(false);
 
   const [toast, setToast] = useState({ show: false, message: "" });
+  const [grade12Data, setGrade12Data] = useState({}); // application_id -> totalPoints
 
   const showToast = (message) => {
     setToast({ show: true, message });
     setTimeout(() => setToast({ show: false, message: "" }), 3500);
   };
+
+  // Fetch Grade 12 results and calculate total points
+  useEffect(() => {
+    const fetchGrade12Results = async () => {
+      if (!apps.length) return;
+
+      const appIds = apps.map(a => a.id);
+      const { data, error } = await supabase
+        .from("grade12_results")
+        .select("application_id, points")
+        .in("application_id", appIds);
+
+      if (error) {
+        console.error("Error fetching grade12 results:", error);
+        return;
+      }
+
+      // Calculate total points per application
+      const pointsMap = {};
+      data.forEach(row => {
+        if (!pointsMap[row.application_id]) pointsMap[row.application_id] = 0;
+        pointsMap[row.application_id] += row.points || 0;
+      });
+
+      setGrade12Data(pointsMap);
+    };
+
+    fetchGrade12Results();
+  }, [apps]);
 
   const qualificationsList = [
     "All", "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
@@ -67,18 +98,30 @@ export default function Dashboard({ apps, refreshData }) {
       const matchesSearch = !search || (app.full_name?.toLowerCase().includes(search.toLowerCase()) || app.email?.toLowerCase().includes(search.toLowerCase()));
       const matchesStatus = statusFilter === "All" || app.status === statusFilter;
       const matchesQualification = qualificationFilter === "All" || (app.qualification && app.qualification.toLowerCase().includes(qualificationFilter.toLowerCase()));
+
       const age = parseInt(app.age);
       const matchesAgeMin = !ageMin || (age && age >= parseInt(ageMin));
       const matchesAgeMax = !ageMax || (age && age <= parseInt(ageMax));
-      return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax;
+
+      const appPoints = grade12Data[app.id] || 0;
+      const matchesMinPoints = !minPoints || appPoints >= parseInt(minPoints);
+
+      return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax && matchesMinPoints;
     });
 
-    if (sortMode === "bestMatch") result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
-    else if (sortMode === "name") result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
-    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Sorting
+    if (sortMode === "bestMatch") {
+      result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
+    } else if (sortMode === "points") {
+      result.sort((a, b) => (grade12Data[b.id] || 0) - (grade12Data[a.id] || 0));
+    } else if (sortMode === "name") {
+      result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
+    } else {
+      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
 
     return result;
-  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax, sortMode]);
+  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax, minPoints, sortMode, grade12Data]);
 
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
@@ -92,7 +135,9 @@ export default function Dashboard({ apps, refreshData }) {
     const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", id);
     if (!error) {
       refreshData();
-      if (selectedApplicant?.id === id) setSelectedApplicant({ ...selectedApplicant, status: newStatus });
+      if (selectedApplicant?.id === id) {
+        setSelectedApplicant({ ...selectedApplicant, status: newStatus });
+      }
       showToast(`Status updated to ${newStatus}. Email notification sent to candidate.`);
     }
   };
@@ -185,9 +230,11 @@ export default function Dashboard({ apps, refreshData }) {
           <span style={{ color: "#64748b" }}>-</span>
           <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => { setAgeMax(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
         </div>
+        <input type="number" placeholder="Min Total Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }} style={{ width: 140, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
         <select value={sortMode} onChange={(e) => { setSortMode(e.target.value); setPage(1); }} style={selectStyle}>
           <option value="newest">Newest First</option>
           <option value="bestMatch">Best Match</option>
+          <option value="points">Highest Points</option>
           <option value="name">Name A-Z</option>
         </select>
       </div>
@@ -202,6 +249,7 @@ export default function Dashboard({ apps, refreshData }) {
           {paginatedApps.map(app => {
             const isNew = app.status === "New";
             const matchScore = getBestMatchScore(app);
+            const totalPoints = grade12Data[app.id] || 0;
             return (
               <div key={app.id} style={{ ...cardStyle, borderLeft: isNew ? "4px solid #22c55e" : "4px solid transparent", background: isNew ? "#f8fff9" : "white" }} onClick={() => setSelectedApplicant(app)}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -210,9 +258,13 @@ export default function Dashboard({ apps, refreshData }) {
                 </div>
                 <p style={{ margin: "2px 0", color: "#64748b", fontSize: 14 }}>{app.email}</p>
                 <p style={{ margin: "4px 0", fontSize: 14 }}>{app.qualification} — {app.institution}</p>
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
+                    <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>
+                      Points: {totalPoints}
+                    </span>
                     {sortMode === "bestMatch" && <span style={{ fontSize: "12px", background: "#bae6fd", color: "#0369a1", padding: "2px 10px", borderRadius: "9999px", fontWeight: 600 }}>Match: {matchScore}</span>}
                   </div>
                   <span style={statusBadge(app.status)}>{app.status || "New"}</span>
@@ -244,6 +296,7 @@ export default function Dashboard({ apps, refreshData }) {
             <p><strong>Score:</strong> {selectedApplicant.score || 0}%</p>
             <p><strong>Status:</strong> <span style={statusBadge(selectedApplicant.status)}>{selectedApplicant.status || "New"}</span></p>
             <p><strong>Applied:</strong> {new Date(selectedApplicant.created_at).toLocaleDateString("en-GB")} ({getTimeAgo(selectedApplicant.created_at)})</p>
+            <p><strong>Total Points:</strong> {grade12Data[selectedApplicant.id] || 0}</p>
 
             {selectedApplicant.cv_url ? (
               <div style={{ margin: "20px 0" }}>
@@ -274,7 +327,7 @@ export default function Dashboard({ apps, refreshData }) {
         </div>
       )}
 
-      {/* Post New Job Modal - FIXED */}
+      {/* Post New Job Modal */}
       {showJobModal && (
         <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
           <div style={modalStyle}>
@@ -282,27 +335,12 @@ export default function Dashboard({ apps, refreshData }) {
               <h3 style={{ margin: 0 }}>Post New Job</h3>
               <button onClick={() => setShowJobModal(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer" }}>✕</button>
             </div>
-
-            <div>
-              <label style={mLabel}>Job Title *</label>
-              <input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" />
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={mLabel}>Location</label>
-              <input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" />
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label style={mLabel}>Description *</label>
-              <textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role..." />
-            </div>
-
+            <div><label style={mLabel}>Job Title *</label><input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" /></div>
+            <div style={{ marginTop: 16 }}><label style={mLabel}>Location</label><input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" /></div>
+            <div style={{ marginTop: 16 }}><label style={mLabel}>Description *</label><textarea name="description" style={{ ...mInput, minHeight: "100px" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role..." /></div>
             <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
               <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
-              <button onClick={postNewJob} disabled={postingJob} style={postBtn}>
-                {postingJob ? "Posting..." : "Post Job"}
-              </button>
+              <button onClick={postNewJob} disabled={postingJob} style={postBtn}>{postingJob ? "Posting..." : "Post Job"}</button>
             </div>
           </div>
         </div>
