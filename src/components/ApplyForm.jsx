@@ -12,22 +12,20 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
   const [files, setFiles] = useState({ nrc: null, cv: null, qualifications: null, tertiary: null });
 
-  // Grade 12 Results State
+  // Grade 12 Results State (Zambian 1-9 numeric system)
   const [grade12Subjects, setGrade12Subjects] = useState([
-    { subject: "", grade: "", points: 0 }
+    { subject: "", points: "" }
   ]);
 
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [jobTitle, setJobTitle] = useState("Graduate Trainee Application — Step Up Program 2026");
 
-  // Grade to Points mapping (Zambian standard)
-  const gradeToPoints = {
-    "A": 12, "B": 10, "C": 8, "D": 6, "E": 4, "F": 2, "O": 0
-  };
-
-  // Calculate total points
-  const totalPoints = grade12Subjects.reduce((sum, item) => sum + (item.points || 0), 0);
+  // Calculate total points (lower = better in Zambian system)
+  const totalPoints = grade12Subjects.reduce((sum, item) => {
+    const p = parseInt(item.points);
+    return sum + (isNaN(p) ? 0 : p);
+  }, 0);
 
   // Job ID handling
   useEffect(() => {
@@ -70,13 +68,13 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     }
   };
 
-  // Grade 12 Subject Handlers
+  // Grade 12 Subject Handlers (Zambian numeric system)
   const addGrade12Subject = () => {
-    setGrade12Subjects([...grade12Subjects, { subject: "", grade: "", points: 0 }]);
+    setGrade12Subjects([...grade12Subjects, { subject: "", points: "" }]);
   };
 
   const removeGrade12Subject = (index) => {
-    if (grade12Subjects.length === 1) return; // Keep at least one row
+    if (grade12Subjects.length === 1) return;
     const updated = grade12Subjects.filter((_, i) => i !== index);
     setGrade12Subjects(updated);
   };
@@ -84,10 +82,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   const updateGrade12Subject = (index, field, value) => {
     const updated = [...grade12Subjects];
     updated[index][field] = value;
-
-    if (field === "grade") {
-      updated[index].points = gradeToPoints[value.toUpperCase()] || 0;
-    }
     setGrade12Subjects(updated);
   };
 
@@ -113,6 +107,17 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     if (!agreed) {
       alert("Please agree to the Terms & Conditions");
       return;
+    }
+
+    // Validate Grade 12 points (1-9 only)
+    for (let subj of grade12Subjects) {
+      if (subj.subject && subj.points) {
+        const p = parseInt(subj.points);
+        if (isNaN(p) || p < 1 || p > 9) {
+          alert("Grade 12 points must be between 1 and 9");
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -167,14 +172,14 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
       if (appError) throw appError;
 
-      // 4. Insert Grade 12 Results
+      // 4. Insert Grade 12 Results (Zambian numeric system)
       const grade12Rows = grade12Subjects
-        .filter(s => s.subject && s.grade)
+        .filter(s => s.subject && s.points)
         .map(s => ({
           application_id: appData.id,
           subject: s.subject,
-          grade: s.grade.toUpperCase(),
-          points: s.points || 0
+          grade: s.points,           // Store the numeric value as grade
+          points: parseInt(s.points)
         }));
 
       if (grade12Rows.length > 0) {
@@ -263,36 +268,42 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           {form.field_of_study === "Other" && <input type="text" placeholder="Enter field of study" style={{...input, marginTop: "12px"}} value={form.other_field} onChange={(e) => handleOtherChange("other_field", e.target.value)} />}
         </div>
 
-        {/* Grade 12 Results Section */}
+        {/* Grade 12 Results Section - Zambian Numeric System (1-9) */}
         <div style={{ marginTop: "40px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <label style={label}>Grade 12 Results (for Total Points calculation)</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div>
+              <label style={label}>Grade 12 Results</label>
+              <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#64748b" }}>
+                Enter subject and points (1 = Best, 9 = Worst). Lower total = Stronger candidate.
+              </p>
+            </div>
             <button type="button" onClick={addGrade12Subject} style={{ padding: "6px 14px", background: "#0f172a", color: "white", border: "none", borderRadius: 8, fontSize: "0.9rem", cursor: "pointer" }}>+ Add Subject</button>
           </div>
 
           {grade12Subjects.map((item, index) => (
-            <div key={index} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
+            <div key={index} style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
               <input
                 placeholder="Subject (e.g. Mathematics)"
                 value={item.subject}
                 onChange={(e) => updateGrade12Subject(index, "subject", e.target.value)}
                 style={input}
               />
-              <select
-                value={item.grade}
-                onChange={(e) => updateGrade12Subject(index, "grade", e.target.value)}
+              <input
+                type="number"
+                min="1"
+                max="9"
+                placeholder="Points (1-9)"
+                value={item.points}
+                onChange={(e) => updateGrade12Subject(index, "points", e.target.value)}
                 style={input}
-              >
-                <option value="">Grade</option>
-                {Object.keys(gradeToPoints).map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-              <input value={item.points} readOnly style={{ ...input, background: "#f8fafc" }} />
+              />
               <button type="button" onClick={() => removeGrade12Subject(index)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
             </div>
           ))}
 
-          <div style={{ marginTop: "8px", fontWeight: 600, color: "#0f172a" }}>
-            Total Points: <span style={{ fontSize: "1.3rem" }}>{totalPoints}</span>
+          <div style={{ marginTop: "8px", fontWeight: 600, color: "#0f172a", fontSize: "1.1rem" }}>
+            Total Points: <span style={{ fontSize: "1.4rem", color: totalPoints <= 20 ? "#16a34a" : totalPoints <= 35 ? "#ca8a04" : "#ef4444" }}>{totalPoints}</span>
+            <span style={{ fontSize: "0.9rem", color: "#64748b", marginLeft: "12px" }}>(Lower is better)</span>
           </div>
         </div>
 
