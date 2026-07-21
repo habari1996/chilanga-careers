@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
+
+// Cloudflare Turnstile site key (public). Set VITE_TURNSTILE_SITE_KEY in the
+// Netlify environment; falls back to Cloudflare's always-passes TEST key so the
+// form still works before the real key is configured.
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
 
 export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   const [form, setForm] = useState({
@@ -20,6 +25,47 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [jobTitle, setJobTitle] = useState("Graduate Trainee Application — Step Up Program 2026");
+
+  // Cloudflare Turnstile CAPTCHA state
+  const [captchaToken, setCaptchaToken] = useState("");
+  const captchaRef = useRef(null);
+  const widgetIdRef = useRef(null);
+
+  // Load the Turnstile script and render the widget once.
+  useEffect(() => {
+    const renderWidget = () => {
+      if (window.turnstile && captchaRef.current && widgetIdRef.current === null) {
+        widgetIdRef.current = window.turnstile.render(captchaRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token) => setCaptchaToken(token),
+          "expired-callback": () => setCaptchaToken(""),
+          "error-callback": () => setCaptchaToken(""),
+        });
+      }
+    };
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      let script = document.querySelector(`script[src="${src}"]`);
+      if (!script) {
+        script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+      script.addEventListener("load", renderWidget);
+    }
+
+    return () => {
+      if (window.turnstile && widgetIdRef.current !== null) {
+        try { window.turnstile.remove(widgetIdRef.current); } catch (e) { /* noop */ }
+        widgetIdRef.current = null;
+      }
+    };
+  }, []);
 
   // Calculate total points (lower = better in Zambian system)
   const totalPoints = grade12Subjects.reduce((sum, item) => {
@@ -107,6 +153,11 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
   const submitApplication = async () => {
     if (!agreed) {
       alert("Please agree to the Terms & Conditions");
+      return;
+    }
+
+    if (!captchaToken) {
+      alert("Please complete the verification challenge before submitting.");
       return;
     }
 
@@ -344,7 +395,13 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </label>
         </div>
 
-        <button onClick={submitApplication} disabled={loading || !agreed} style={submitBtn}>
+        <div ref={captchaRef} style={{ marginTop: "24px", display: "flex", justifyContent: "center" }} />
+
+        <button
+          onClick={submitApplication}
+          disabled={loading || !agreed || !captchaToken}
+          style={{ ...submitBtn, ...((loading || !agreed || !captchaToken) ? { opacity: 0.6, cursor: "not-allowed" } : {}) }}
+        >
           {loading ? "Submitting Application..." : "Submit Application"}
         </button>
       </div>
