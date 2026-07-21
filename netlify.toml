@@ -2,3 +2,15 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    # CSP: scripts/styles are self-hosted (Vite bundle + React inline styles);
+    # the app talks to Supabase for data/auth/storage, and embeds applicant
+    # CVs from Supabase Storage in an iframe (frame-src).
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://wpynkjowoosxcegtvzvq.supabase.co; font-src 'self' data:; connect-src 'self' https://wpynkjowoosxcegtvzvq.supabase.co; frame-src https://wpynkjowoosxcegtvzvq.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"

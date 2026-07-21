@@ -86,7 +86,7 @@ export default function TrackApplication() {
           disabled={loading}
           style={{
             padding: "14px 40px",
-            background: "#f59e0b",
+            background: "#b45309",
             color: "white",
             border: "none",
             borderRadius: 10,

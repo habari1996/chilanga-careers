@@ -73,7 +73,7 @@ export default function Confirmation({ onBack, applicantName }) {
         style={{
           padding: "16px 48px",
           fontSize: "1.05rem",
-          background: "#f59e0b",
+          background: "#b45309",
           color: "white",
           border: "none",
           borderRadius: 12,
