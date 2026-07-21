@@ -98,8 +98,9 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
     if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
 
-    const { data } = supabase.storage.from("cvs").getPublicUrl(filePath);
-    return data.publicUrl;
+    // Store the object path (not a public URL) so the bucket can stay private.
+    // HR generates a short-lived signed URL from this path when viewing.
+    return filePath;
   };
 
   // Main Submit Function

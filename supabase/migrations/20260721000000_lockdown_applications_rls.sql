@@ -192,3 +192,47 @@ end;
 $$;
 
 grant execute on function public.submit_application(jsonb) to anon, authenticated;
+
+-- ── storage: cvs bucket (uploaded NRCs, CVs, certificates) ──────────────
+-- The Apply form uploads applicant documents to the public `cvs` bucket and
+-- stores public URLs, so anyone with a URL can download an NRC or CV. Lock
+-- the bucket down to: anon may UPLOAD (needed by the form), HR may READ
+-- (needed to mint signed URLs for viewing). No public read.
+--
+-- IMPORTANT ordering when applying to an existing project:
+--   1. Deploy the frontend that stores object paths + views via signed URLs.
+--   2. Run the storage policies below and the backfill (commented) block.
+--   3. ONLY THEN flip the bucket to private (last commented statement),
+--      so HR never loses access to existing CVs mid-transition.
+
+drop policy if exists "anon upload cvs" on storage.objects;
+create policy "anon upload cvs"
+  on storage.objects
+  for insert
+  to anon
+  with check (bucket_id = 'cvs');
+
+drop policy if exists "hr read cvs" on storage.objects;
+create policy "hr read cvs"
+  on storage.objects
+  for select
+  to authenticated
+  using (bucket_id = 'cvs' and public.is_hr());
+
+-- Backfill: convert existing full-URL document references to bucket paths.
+-- (The Dashboard also handles the legacy URL format, so this is optional but
+-- keeps the data consistent.) Run once, before flipping the bucket private:
+--
+-- update public.applications set
+--   cv_url                   = regexp_replace(cv_url,                   '^.*/storage/v1/object/public/cvs/', ''),
+--   nrc_url                  = regexp_replace(nrc_url,                  '^.*/storage/v1/object/public/cvs/', ''),
+--   qualifications_url       = regexp_replace(qualifications_url,       '^.*/storage/v1/object/public/cvs/', ''),
+--   tertiary_certificate_url = regexp_replace(tertiary_certificate_url, '^.*/storage/v1/object/public/cvs/', '')
+-- where cv_url like '%/object/public/cvs/%'
+--    or nrc_url like '%/object/public/cvs/%'
+--    or qualifications_url like '%/object/public/cvs/%'
+--    or tertiary_certificate_url like '%/object/public/cvs/%';
+--
+-- Finally, make the bucket private (do this LAST, after deploy + backfill):
+--
+-- update storage.buckets set public = false where id = 'cvs';
