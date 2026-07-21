@@ -23,6 +23,9 @@ export default function Dashboard({ apps, refreshData }) {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
+  const [cvUrl, setCvUrl] = useState(null);
+  const [cvLoading, setCvLoading] = useState(false);
+
   const showToast = (message) => {
     setToast({ show: true, message });
     setTimeout(() => setToast({ show: false, message: "" }), 3500);
@@ -48,6 +51,37 @@ export default function Dashboard({ apps, refreshData }) {
     };
     fetchGrade12Results();
   }, [apps]);
+
+  // Resolve a stored CV reference to a usable object path within the "cvs"
+  // bucket. Handles both new-format values (already a path like "cvs/x.pdf")
+  // and legacy values (full public URL ".../object/public/cvs/cvs/x.pdf").
+  const cvPathFromStored = (stored) => {
+    if (!stored) return null;
+    const marker = "/storage/v1/object/public/cvs/";
+    const i = stored.indexOf(marker);
+    return i !== -1 ? stored.slice(i + marker.length) : stored;
+  };
+
+  // Mint a short-lived signed URL whenever an applicant is opened, so the CV
+  // is viewable even though the bucket is private.
+  useEffect(() => {
+    let active = true;
+    const resolveCv = async () => {
+      setCvUrl(null);
+      const path = cvPathFromStored(selectedApplicant?.cv_url);
+      if (!path) return;
+      setCvLoading(true);
+      const { data, error } = await supabase.storage
+        .from("cvs")
+        .createSignedUrl(path, 3600);
+      if (active) {
+        setCvUrl(error ? null : data.signedUrl);
+        setCvLoading(false);
+      }
+    };
+    resolveCv();
+    return () => { active = false; };
+  }, [selectedApplicant]);
 
   const qualificationsList = ["All", "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma", "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science", "Bachelor of Commerce", "Bachelor of Business Administration", "Master's Degree", "Other"];
 
@@ -378,8 +412,16 @@ export default function Dashboard({ apps, refreshData }) {
             {selectedApplicant.cv_url ? (
               <div style={{ margin: "20px 0" }}>
                 <h4>📄 Resume / CV</h4>
-                <div style={resumeContainer}><iframe src={selectedApplicant.cv_url} style={iframeStyle} title="Applicant Resume" /></div>
-                <a href={selectedApplicant.cv_url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
+                {cvLoading ? (
+                  <p style={{ color: "#64748b", fontStyle: "italic" }}>Loading CV…</p>
+                ) : cvUrl ? (
+                  <>
+                    <div style={resumeContainer}><iframe src={cvUrl} style={iframeStyle} title="Applicant Resume" /></div>
+                    <a href={cvUrl} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
+                  </>
+                ) : (
+                  <p style={{ color: "#ef4444", fontStyle: "italic" }}>Could not load CV (access denied or file missing).</p>
+                )}
               </div>
             ) : selectedApplicant.cv_text ? (
               <div style={{ margin: "20px 0" }}>

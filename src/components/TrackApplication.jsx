@@ -27,11 +27,7 @@ export default function TrackApplication() {
       const cleanEmail = email.trim().toLowerCase();
 
       const { data, error: fetchError } = await supabase
-        .from("applications")
-        .select("full_name, status, created_at, qualification, email")
-        .eq("email", cleanEmail)
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .rpc("track_application", { p_email: cleanEmail });
 
       if (fetchError) throw fetchError;
 

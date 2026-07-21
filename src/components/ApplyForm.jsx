@@ -98,8 +98,9 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
     if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
 
-    const { data } = supabase.storage.from("cvs").getPublicUrl(filePath);
-    return data.publicUrl;
+    // Store the object path (not a public URL) so the bucket can stay private.
+    // HR generates a short-lived signed URL from this path when viewing.
+    return filePath;
   };
 
   // Main Submit Function
@@ -163,14 +164,16 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         status: "New",
       };
 
-      // 3. Insert Application
-      const { data: appData, error: appError } = await supabase
-        .from("applications")
-        .insert([applicationData])
-        .select()
-        .single();
+      // 3. Insert Application via SECURITY DEFINER RPC.
+      // The applications table has no anon SELECT policy (to protect
+      // applicant PII), so a direct .insert().select() would fail on the
+      // RETURNING clause. submit_application inserts server-side and
+      // returns only the new row id.
+      const { data: newId, error: appError } = await supabase
+        .rpc("submit_application", { p: applicationData });
 
       if (appError) throw appError;
+      const appData = { id: newId };
 
       // 4. Insert Grade 12 Results (Zambian numeric system)
       const grade12Rows = grade12Subjects
