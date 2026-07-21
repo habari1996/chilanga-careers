@@ -27,6 +27,12 @@
 -- ── applications ────────────────────────────────────────────────────────
 alter table public.applications enable row level security;
 
+-- Remove the pre-existing policy that granted anon SELECT on ALL rows
+-- (it was defined as `using (true)` for the anon role, which exposed the
+-- whole table). Public application lookups now go through the
+-- track_application() RPC below instead.
+drop policy if exists "applicant_can_track_own" on public.applications;
+
 drop policy if exists "public insert applications" on public.applications;
 create policy "public insert applications"
   on public.applications
@@ -116,3 +122,40 @@ as $$
 $$;
 
 grant execute on function public.track_application(text) to anon, authenticated;
+
+-- ── submit_application RPC ──────────────────────────────────────────────
+-- The Apply form needs the new row's id back (to attach grade12_results),
+-- but there is no anon SELECT policy on applications, so a direct
+-- .insert().select() fails on the RETURNING clause. This SECURITY DEFINER
+-- function inserts server-side and returns only the new id. It explicitly
+-- omits id/created_at/score from the insert so the client can't set them.
+create or replace function public.submit_application(p jsonb)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  rec public.applications;
+  new_id bigint;
+begin
+  rec := jsonb_populate_record(null::public.applications, p);
+
+  insert into public.applications (
+    full_name, email, phone, alt_phone, dob, age, gender, nationality,
+    qualification, institution, field_of_study, graduation_year,
+    skills, experience, cv_url, nrc_url, qualifications_url,
+    tertiary_certificate_url, cv_text, job_id, status
+  ) values (
+    rec.full_name, rec.email, rec.phone, rec.alt_phone, rec.dob, rec.age, rec.gender, rec.nationality,
+    rec.qualification, rec.institution, rec.field_of_study, rec.graduation_year,
+    rec.skills, rec.experience, rec.cv_url, rec.nrc_url, rec.qualifications_url,
+    rec.tertiary_certificate_url, rec.cv_text, rec.job_id, coalesce(rec.status, 'New')
+  )
+  returning id into new_id;
+
+  return new_id;
+end;
+$$;
+
+grant execute on function public.submit_application(jsonb) to anon, authenticated;
