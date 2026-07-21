@@ -166,7 +166,7 @@ export default function App() {
                     padding: "18px 48px",
                     fontSize: "1.15rem",
                     fontWeight: 600,
-                    background: "#f59e0b",
+                    background: "#b45309",
                     color: "white",
                     border: "none",
                     borderRadius: 12,
@@ -249,7 +249,7 @@ export default function App() {
 const primaryBtn = {
   padding: "14px 32px",
   fontSize: "1.1rem",
-  background: "#f59e0b",
+  background: "#b45309",
   color: "white",
   border: "none",
   borderRadius: 12,

@@ -6,7 +6,7 @@ export default function JobList({ jobs, setTab }) {
       <div style={{ textAlign: "center", padding: "100px 20px" }}>
         <h2 style={{ fontSize: "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
         <p style={{ color: "#64748b", marginTop: 12, fontSize: "1.1rem" }}>
-          Check back later or <span onClick={() => setTab("apply")} style={{ color: "#f59e0b", cursor: "pointer", textDecoration: "underline" }}>start a general application</span>.
+          Check back later or <span onClick={() => setTab("apply")} style={{ color: "#b45309", cursor: "pointer", textDecoration: "underline" }}>start a general application</span>.
         </p>
       </div>
     );
@@ -138,7 +138,7 @@ const buttonGroup = {
 const applyBtn = {
   flex: 1,
   padding: "16px",
-  background: "#f59e0b",
+  background: "#b45309",
   color: "white",
   border: "none",
   borderRadius: "12px",

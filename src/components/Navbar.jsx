@@ -82,7 +82,7 @@ export default function Navbar({ tab, setTab, session, isHR, onSignOut }) {
 // Button Styles
 const primaryBtn = { 
   padding: "10px 18px", 
-  background: "#f59e0b", 
+  background: "#b45309", 
   color: "white", 
   border: "none", 
   borderRadius: 10, 
@@ -102,5 +102,5 @@ const ghostBtn = {
 const activeBtn = { 
   ...ghostBtn, 
   background: "#1e2937", 
-  borderColor: "#f59e0b" 
+  borderColor: "#b45309" 
 };

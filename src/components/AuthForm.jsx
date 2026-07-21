@@ -106,7 +106,7 @@ export default function AuthForm({ setTab }) {
         <div style={{ textAlign: "center", marginTop: 20 }}>
           <button 
             onClick={() => setMode(mode === "login" ? "signup" : "login")} 
-            style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", fontSize: "15px" }}
+            style={{ background: "none", border: "none", color: "#b45309", cursor: "pointer", fontSize: "15px" }}
           >
             {mode === "login" ? "Need an account? Sign up" : "Already have an account? Login"}
           </button>
@@ -139,7 +139,7 @@ const inputStyle = {
 const primaryBtn = { 
   width: "100%", 
   padding: "14px", 
-  background: "#f59e0b", 
+  background: "#b45309", 
   color: "white", 
   border: "none", 
   borderRadius: 10, 

@@ -357,4 +357,4 @@ const label = { display: "block", marginBottom: "8px", fontWeight: "600", color:
 const input = { width: "100%", padding: "16px", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "1rem", boxSizing: "border-box" };
 const twoCol = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" };
 const skillBtn = { padding: "8px 16px", fontSize: "0.9rem", border: "1px solid #e2e8f0", borderRadius: "9999px", background: "#f8fafc", cursor: "pointer" };
-const submitBtn = { width: "100%", padding: "18px", marginTop: "40px", background: "#f59e0b", color: "white", border: "none", borderRadius: "12px", fontSize: "1.1rem", fontWeight: "600", cursor: "pointer" };
+const submitBtn = { width: "100%", padding: "18px", marginTop: "40px", background: "#b45309", color: "white", border: "none", borderRadius: "12px", fontSize: "1.1rem", fontWeight: "600", cursor: "pointer" };
