@@ -24,14 +24,45 @@
 -- Run this in the Supabase SQL Editor for this project, or via the
 -- Supabase CLI: `supabase db push`.
 
+-- ── is_hr() helper ──────────────────────────────────────────────────────
+-- Single source of truth for "is the current session an HR staff member?".
+-- Used by every staff-only policy below so the rule lives in one place.
+--
+-- NOTE: this trusts the `email` claim in the session JWT. That is only safe
+-- if email confirmation is ENABLED in Supabase Auth (otherwise someone could
+-- self-register as attacker@huaxincem.com without owning that inbox and gain
+-- HR access). For stronger control, replace the domain checks with membership
+-- in a dedicated hr_staff(email) allow-list table seeded by an admin.
+create or replace function public.is_hr()
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select coalesce(
+       (auth.jwt() ->> 'email') ilike '%@huaxin.com'
+    or (auth.jwt() ->> 'email') ilike '%@huaxincem.com'
+    or (auth.jwt() ->> 'email') ilike '%@chilangacement.co.zm',
+    false
+  );
+$$;
+grant execute on function public.is_hr() to authenticated;
+
 -- ── applications ────────────────────────────────────────────────────────
 alter table public.applications enable row level security;
 
--- Remove the pre-existing policy that granted anon SELECT on ALL rows
--- (it was defined as `using (true)` for the anon role, which exposed the
--- whole table). Public application lookups now go through the
--- track_application() RPC below instead.
-drop policy if exists "applicant_can_track_own" on public.applications;
+-- Drop the pre-existing anon SELECT-all policy (public lookups now go through
+-- the track_application() RPC), plus every SELECT/UPDATE/DELETE policy that
+-- was scoped `using (true)` for the authenticated role -- those let ANY
+-- logged-in user (including anyone who self-registered) read/modify all
+-- applicant PII. They are replaced with is_hr()-gated policies.
+drop policy if exists "applicant_can_track_own"       on public.applications;
+drop policy if exists "HR can view all applications"  on public.applications;
+drop policy if exists "HR can view applications"      on public.applications;
+drop policy if exists "HR can update applications"    on public.applications;
+drop policy if exists "HR can delete applications"    on public.applications;
+drop policy if exists "staff read applications"       on public.applications;
+drop policy if exists "staff update applications"     on public.applications;
 
 drop policy if exists "public insert applications" on public.applications;
 create policy "public insert applications"
@@ -40,22 +71,24 @@ create policy "public insert applications"
   to anon
   with check (true);
 
-drop policy if exists "staff read applications" on public.applications;
-create policy "staff read applications"
+create policy "hr read applications"
   on public.applications
   for select
   to authenticated
-  using (true);
+  using (public.is_hr());
 
-drop policy if exists "staff update applications" on public.applications;
-create policy "staff update applications"
+create policy "hr update applications"
   on public.applications
   for update
   to authenticated
-  using (true);
+  using (public.is_hr())
+  with check (public.is_hr());
 
--- No anon SELECT/UPDATE/DELETE policy is defined, so those are denied by
--- default once RLS is enabled.
+create policy "hr delete applications"
+  on public.applications
+  for delete
+  to authenticated
+  using (public.is_hr());
 
 -- ── grade12_results ─────────────────────────────────────────────────────
 alter table public.grade12_results enable row level security;
@@ -68,11 +101,11 @@ create policy "public insert grade12 results"
   with check (true);
 
 drop policy if exists "staff read grade12 results" on public.grade12_results;
-create policy "staff read grade12 results"
+create policy "hr read grade12 results"
   on public.grade12_results
   for select
   to authenticated
-  using (true);
+  using (public.is_hr());
 
 -- ── jobs ─────────────────────────────────────────────────────────────────
 alter table public.jobs enable row level security;
@@ -85,18 +118,18 @@ create policy "public read jobs"
   using (true);
 
 drop policy if exists "staff manage jobs insert" on public.jobs;
-create policy "staff manage jobs insert"
+create policy "hr insert jobs"
   on public.jobs
   for insert
   to authenticated
-  with check (true);
+  with check (public.is_hr());
 
 drop policy if exists "staff manage jobs update" on public.jobs;
-create policy "staff manage jobs update"
+create policy "hr update jobs"
   on public.jobs
   for update
   to authenticated
-  using (true);
+  using (public.is_hr());
 
 -- ── track_application RPC ───────────────────────────────────────────────
 -- Returns only the columns the "Track Your Application" page needs, for
