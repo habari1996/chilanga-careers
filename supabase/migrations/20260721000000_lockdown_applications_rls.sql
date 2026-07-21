@@ -183,7 +183,10 @@ begin
     rec.full_name, rec.email, rec.phone, rec.alt_phone, rec.dob, rec.age, rec.gender, rec.nationality,
     rec.qualification, rec.institution, rec.field_of_study, rec.graduation_year,
     rec.skills, rec.experience, rec.cv_url, rec.nrc_url, rec.qualifications_url,
-    rec.tertiary_certificate_url, rec.cv_text, rec.job_id, coalesce(rec.status, 'New')
+    rec.tertiary_certificate_url, rec.cv_text, rec.job_id, 'New'
+    -- status is forced to 'New' and never taken from client input, so an
+    -- applicant cannot self-set their status to Hired/Shortlisted. score is
+    -- likewise omitted (defaults) so it can't be seeded by the client.
   )
   returning id into new_id;
 

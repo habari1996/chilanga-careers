@@ -41,12 +41,27 @@ export default function App() {
 
   async function loadData() {
     const { supabase } = await import("./supabaseClient");
-    const [{ data: jobsData }, { data: appsData }] = await Promise.all([
-      supabase.from("jobs").select("*").order("id"),
-      supabase.from("applications").select("*").order("created_at", { ascending: false }),
-    ]);
+    const { data: jobsData } = await supabase.from("jobs").select("*").order("id");
+
+    // Fetch applications in pages. PostgREST caps a single response at
+    // ~1000 rows (Supabase default max-rows), so a plain .select() would
+    // silently drop everything past the newest 1000. Page through with
+    // .range() until a short page comes back.
+    const pageSize = 1000;
+    let allApps = [];
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (error) break;
+      allApps = allApps.concat(data || []);
+      if (!data || data.length < pageSize) break;
+    }
+
     setJobs(jobsData || []);
-    setApps(appsData || []);
+    setApps(allApps);
   }
 
   const handleSetTab = (newTab, jobId = null) => {

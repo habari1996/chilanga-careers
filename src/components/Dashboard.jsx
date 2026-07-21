@@ -35,18 +35,25 @@ export default function Dashboard({ apps, refreshData }) {
     const fetchGrade12Results = async () => {
       if (!apps.length) return;
       const appIds = apps.map(a => a.id);
-      const { data, error } = await supabase
-        .from("grade12_results")
-        .select("application_id, points")
-        .in("application_id", appIds);
 
-      if (error) { console.error(error); return; }
-
+      // Fetch in chunks: a single .in() with thousands of ids overflows the
+      // request URL, and one response is capped at ~1000 rows while there can
+      // be several grade12 rows per application. Chunking the ids keeps each
+      // request small and under the row cap.
+      const chunkSize = 200;
       const pointsMap = {};
-      data.forEach(row => {
-        if (!pointsMap[row.application_id]) pointsMap[row.application_id] = 0;
-        pointsMap[row.application_id] += row.points || 0;
-      });
+      for (let i = 0; i < appIds.length; i += chunkSize) {
+        const chunk = appIds.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("grade12_results")
+          .select("application_id, points")
+          .in("application_id", chunk);
+        if (error) { console.error(error); continue; }
+        data.forEach(row => {
+          if (!pointsMap[row.application_id]) pointsMap[row.application_id] = 0;
+          pointsMap[row.application_id] += row.points || 0;
+        });
+      }
       setGrade12Data(pointsMap);
     };
     fetchGrade12Results();
