@@ -250,7 +250,26 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
     } catch (err) {
       console.error("Submission failed:", err);
-      alert("Failed to submit application: " + err.message);
+
+      // One application per email address is enforced by a unique constraint
+      // on applications.email. Show applicants a plain-English message instead
+      // of the raw Postgres error.
+      const isDuplicateEmail =
+        err?.code === "23505" ||
+        /duplicate key|applications_email_unique/i.test(err?.message || "");
+
+      if (isDuplicateEmail) {
+        alert(
+          "An application has already been submitted with this email address.\n\n" +
+          "You can check its status using \"Track Application\". If you need to " +
+          "update your application, please contact the HR team."
+        );
+      } else {
+        alert(
+          "Sorry, we could not submit your application. Please check your " +
+          "details and try again. If the problem continues, please contact the HR team."
+        );
+      }
     } finally {
       setLoading(false);
     }
