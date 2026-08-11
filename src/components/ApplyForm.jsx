@@ -36,6 +36,8 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
   // Load the Turnstile script and render the widget once.
   useEffect(() => {
+    if (!agreed) return;
+
     const renderWidget = () => {
       if (window.turnstile && captchaRef.current && widgetIdRef.current === null) {
         widgetIdRef.current = window.turnstile.render(captchaRef.current, {
@@ -46,6 +48,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         });
       }
     };
+
     if (window.turnstile) {
       renderWidget();
     } else {
@@ -60,13 +63,14 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       }
       script.addEventListener("load", renderWidget);
     }
+
     return () => {
       if (window.turnstile && widgetIdRef.current !== null) {
-        try { window.turnstile.remove(widgetIdRef.current); } catch (e) { /* noop */ }
+        try { window.turnstile.remove(widgetIdRef.current); } catch (e) {}
         widgetIdRef.current = null;
       }
     };
-  }, []);
+  }, [agreed]);
 
   // Calculate total points (lower = better in Zambian system)
   const totalPoints = grade12Subjects.reduce((sum, item) => {
@@ -107,14 +111,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
   const handleOtherChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
-  const addSkill = (skill) => {
-    const current = form.skills ? form.skills.split(", ").filter(Boolean) : [];
-    if (!current.includes(skill)) {
-      setForm(prev => ({ ...prev, skills: [...current, skill].join(", ") }));
-    }
-  };
-
-  // Grade 12 Subject Handlers (Zambian numeric system)
+  // Grade 12 Subject Handlers
   const addGrade12Subject = () => {
     setGrade12Subjects([...grade12Subjects, { subject: "", points: "" }]);
   };
@@ -144,16 +141,41 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     return filePath;
   };
 
+  // ===== FORM VALIDATION =====
+  const validateForm = () => {
+    const errors = [];
+
+    if (!form.full_name.trim()) errors.push("Full Name is required");
+    if (!form.email.trim()) errors.push("Email Address is required");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errors.push("Please enter a valid email address");
+    }
+    if (!form.phone.trim()) errors.push("Phone Number is required");
+    if (!form.qualification) errors.push("Highest Qualification is required");
+    if (form.qualification === "Other" && !form.other_qualification.trim()) {
+      errors.push("Please specify the qualification");
+    }
+    if (!form.institution) errors.push("Institution / University is required");
+    if (form.institution === "Other" && !form.other_institution.trim()) {
+      errors.push("Please specify the institution");
+    }
+    if (!files.nrc) errors.push("National Registration Card (NRC) is required");
+    if (!files.cv) errors.push("Curriculum Vitae (CV / Resume) is required");
+    if (!agreed) errors.push("You must agree to the Terms & Conditions");
+    if (!captchaToken) errors.push("Please complete the verification challenge");
+
+    return errors;
+  };
+
   // Main Submit Function
   const submitApplication = async () => {
-    if (!agreed) {
-      alert("Please agree to the Terms & Conditions");
+    const errors = validateForm();
+
+    if (errors.length > 0) {
+      alert("Please fix the following:\n\n• " + errors.join("\n• "));
       return;
     }
-    if (!captchaToken) {
-      alert("Please complete the verification challenge before submitting.");
-      return;
-    }
+
     // Validate Grade 12 points (1-9 only)
     for (let subj of grade12Subjects) {
       if (subj.subject && subj.points) {
@@ -164,6 +186,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         }
       }
     }
+
     setLoading(true);
     try {
       // 1. Upload files
@@ -182,9 +205,9 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
       const fieldValue = form.field_of_study === "Other" ? form.other_field : form.field_of_study;
 
       const applicationData = {
-        full_name: form.full_name,
-        email: form.email,
-        phone: form.phone,
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
         alt_phone: form.alt_phone || null,
         dob: form.dob || null,
         age: form.age || null,
@@ -267,15 +290,33 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
 
         {/* Personal Information */}
         <div style={twoCol}>
-          <div><label style={label}>Full Name *</label><input name="full_name" style={input} value={form.full_name} onChange={handleChange} required /></div>
-          <div><label style={label}>Email Address *</label><input name="email" type="email" style={input} value={form.email} onChange={handleChange} required /></div>
-          <div><label style={label}>Phone Number *</label><input name="phone" style={input} value={form.phone} onChange={handleChange} placeholder="0977 123 456" required /></div>
-          <div><label style={label}>Alternative Phone</label><input name="alt_phone" style={input} value={form.alt_phone} onChange={handleChange} /></div>
+          <div>
+            <label style={label}>Full Name *</label>
+            <input name="full_name" style={input} value={form.full_name} onChange={handleChange} required />
+          </div>
+          <div>
+            <label style={label}>Email Address *</label>
+            <input name="email" type="email" style={input} value={form.email} onChange={handleChange} required />
+          </div>
+          <div>
+            <label style={label}>Phone Number *</label>
+            <input name="phone" style={input} value={form.phone} onChange={handleChange} placeholder="0977 123 456" required />
+          </div>
+          <div>
+            <label style={label}>Alternative Phone</label>
+            <input name="alt_phone" style={input} value={form.alt_phone} onChange={handleChange} />
+          </div>
         </div>
 
         <div style={{ ...twoCol, marginTop: "32px" }}>
-          <div><label style={label}>Date of Birth</label><input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} /></div>
-          <div><label style={label}>Age</label><input name="age" style={{ ...input, background: "#f8fafc" }} value={form.age} readOnly /></div>
+          <div>
+            <label style={label}>Date of Birth</label>
+            <input name="dob" type="date" style={input} value={form.dob} onChange={handleChange} />
+          </div>
+          <div>
+            <label style={label}>Age</label>
+            <input name="age" style={{ ...input, background: "#f8fafc" }} value={form.age} readOnly />
+          </div>
         </div>
 
         <div style={{ ...twoCol, marginTop: "32px" }}>
@@ -288,7 +329,10 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
               <option value="Prefer not to say">Prefer not to say</option>
             </select>
           </div>
-          <div><label style={label}>Nationality</label><input name="nationality" style={input} value={form.nationality} onChange={handleChange} /></div>
+          <div>
+            <label style={label}>Nationality</label>
+            <input name="nationality" style={input} value={form.nationality} onChange={handleChange} />
+          </div>
         </div>
 
         {/* Qualification & Institution */}
@@ -407,7 +451,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
               <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleFileChange("nrc", e)} style={input} />
             </div>
 
-            {/* ===== CV Upload with Fake AI ===== */}
+            {/* CV Upload with Fake AI */}
             <div>
               <label style={label}>Curriculum Vitae (CV / Resume) *</label>
               <input 
@@ -416,17 +460,14 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
                 onChange={(e) => {
                   handleFileChange("cv", e);
                   if (e.target.files[0]) {
-                    // Fake AI analysis for demo
                     setAiAnalyzing(true);
                     setAiResult(null);
 
                     setTimeout(() => {
                       setAiAnalyzing(false);
 
-                      // Random score between 72–89
                       const score = Math.floor(Math.random() * 18) + 72;
 
-                      // Random skills
                       const skillPools = [
                         ["Communication", "Teamwork", "Microsoft Office", "Problem Solving"],
                         ["Leadership", "Time Management", "Critical Thinking", "Excel"],
@@ -435,7 +476,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
                         ["Interpersonal Skills", "Organisation", "Problem Solving", "Presentation Skills"]
                       ];
 
-                      // Random summaries
                       const summaries = [
                         "Strong academic profile detected. Good potential for the Graduate Trainee programme.",
                         "Solid foundation with relevant skills. Suitable candidate for further review.",
@@ -458,7 +498,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
                 style={input} 
               />
 
-              {/* Fake AI Analyzing State */}
               {aiAnalyzing && (
                 <div style={{ 
                   marginTop: 12, 
@@ -484,7 +523,6 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
                 </div>
               )}
 
-              {/* Fake AI Result */}
               {aiResult && !aiAnalyzing && (
                 <div style={{ 
                   marginTop: 12, 
@@ -533,7 +571,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </div>
         </div>
 
-        {/* ===== LIVE AI Banner ===== */}
+        {/* LIVE AI Banner */}
         <div style={{ 
           background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", 
           borderRadius: 14, 
@@ -564,33 +602,49 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
           </div>
         </div>
 
+        {/* Terms */}
         <div style={{ marginTop: "40px" }}>
           <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer" }}>
             <input 
               type="checkbox" 
               checked={agreed} 
-              onChange={(e) => setAgreed(e.target.checked)} 
+              onChange={(e) => {
+                const isChecked = e.target.checked;
+                setAgreed(isChecked);
+                if (!isChecked) {
+                  setCaptchaToken("");
+                  if (window.turnstile && widgetIdRef.current !== null) {
+                    try { window.turnstile.remove(widgetIdRef.current); } catch (e) {}
+                    widgetIdRef.current = null;
+                  }
+                }
+              }} 
               style={{ marginTop: 4 }} 
             />
             <span>I confirm that the information provided is accurate and I agree to the Terms &amp; Conditions of the Step Up Program 2026.</span>
           </label>
         </div>
 
-        <div ref={captchaRef} style={{ marginTop: "24px", display: "flex", justifyContent: "center" }} />
+        {/* Turnstile only appears after checkbox is ticked */}
+        {agreed && (
+          <div 
+            ref={captchaRef} 
+            style={{ marginTop: "24px", display: "flex", justifyContent: "center" }} 
+          />
+        )}
 
         <button
           onClick={submitApplication}
-          disabled={loading || !agreed || !captchaToken}
+          disabled={loading}
           style={{ 
             ...submitBtn, 
-            ...((loading || !agreed || !captchaToken) ? { opacity: 0.6, cursor: "not-allowed" } : {}) 
+            ...(loading ? { opacity: 0.6, cursor: "not-allowed" } : {}) 
           }}
         >
           {loading ? "Submitting Application..." : "Submit Application"}
         </button>
       </div>
 
-      {/* Spin animation for fake AI */}
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
