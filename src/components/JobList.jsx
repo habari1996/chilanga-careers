@@ -1,12 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function JobList({ jobs, setTab }) {
+  const [selectedJob, setSelectedJob] = useState(null);
+
   if (!jobs || jobs.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "100px 20px" }}>
         <h2 style={{ fontSize: "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
         <p style={{ color: "#64748b", marginTop: 12, fontSize: "1.1rem" }}>
-          Check back later or <span onClick={() => setTab("apply")} style={{ color: "#b45309", cursor: "pointer", textDecoration: "underline" }}>start a general application</span>.
+          Check back later or{" "}
+          <span
+            onClick={() => setTab("apply")}
+            style={{ color: "#b45309", cursor: "pointer", textDecoration: "underline" }}
+          >
+            start a general application
+          </span>
+          .
         </p>
       </div>
     );
@@ -23,11 +32,13 @@ export default function JobList({ jobs, setTab }) {
         </p>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))",
-        gap: "28px"
-      }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))",
+          gap: "28px",
+        }}
+      >
         {jobs.map((job) => (
           <div key={job.id} style={jobCard}>
             <div style={jobHeader}>
@@ -38,47 +49,166 @@ export default function JobList({ jobs, setTab }) {
             </div>
 
             <div style={metaInfo}>
-              <p><strong>Location:</strong> {job.location || "Lusaka"}</p>
-              <p><strong>Department:</strong> {job.department || "Engineering"}</p>
-              {job.experience_required && <p><strong>Experience:</strong> {job.experience_required}</p>}
-              {job.salary_range && <p><strong>Salary:</strong> {job.salary_range}</p>}
+              <p>
+                <strong>Location:</strong> {job.location || "Zambia"}
+              </p>
+              <p>
+                <strong>Department:</strong>{" "}
+                {job.department || "Open (Multiple fields)"}
+              </p>
+              {job.experience_required && (
+                <p>
+                  <strong>Experience:</strong> {job.experience_required}
+                </p>
+              )}
+              {job.salary_range && (
+                <p>
+                  <strong>Salary:</strong> {job.salary_range}
+                </p>
+              )}
             </div>
 
             <p style={description}>
-              {job.description ? job.description.substring(0, 180) : "Exciting opportunity to join our growing team."}
+              {job.description
+                ? job.description.substring(0, 180)
+                : "Exciting opportunity to join our growing team."}
               {job.description && job.description.length > 180 ? "..." : ""}
             </p>
 
             {job.deadline && (
               <p style={deadline}>
-                Deadline: {new Date(job.deadline).toLocaleDateString("en-GB", { 
-                  day: "numeric", month: "long", year: "numeric" 
+                Deadline:{" "}
+                {new Date(job.deadline).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
                 })}
               </p>
             )}
 
             <div style={buttonGroup}>
-              <button
-                onClick={() => setTab("apply", job.id)}
-                style={applyBtn}
-              >
+              <button onClick={() => setTab("apply", job.id)} style={applyBtn}>
                 Apply Now
               </button>
-              <button
-                onClick={() => alert(job.description || "No further details available.")}
-                style={detailsBtn}
-              >
+              <button onClick={() => setSelectedJob(job)} style={detailsBtn}>
                 View Details
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* ========== PROFESSIONAL DETAILS MODAL ========== */}
+      {selectedJob && (
+        <>
+          {/* Overlay */}
+          <div
+            onClick={() => setSelectedJob(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.55)",
+              backdropFilter: "blur(4px)",
+              zIndex: 1000,
+            }}
+          />
+
+          {/* Modal */}
+          <div style={modalContainer}>
+            <div style={modalContent}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "#0f172a" }}>
+                    {selectedJob.title}
+                  </h2>
+                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <span style={badge}>{selectedJob.job_type || "Full-time"}</span>
+                    <span style={{ ...badge, background: "#e0f2fe", color: "#0369a1" }}>
+                      {selectedJob.location || "Zambia"}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 24,
+                    cursor: "pointer",
+                    color: "#64748b",
+                    lineHeight: 1,
+                    padding: 4,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Meta */}
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
+                <p style={{ margin: "0 0 8px", color: "#475569" }}>
+                  <strong>Department:</strong> {selectedJob.department || "Open (Multiple fields)"}
+                </p>
+                {selectedJob.experience_required && (
+                  <p style={{ margin: "0 0 8px", color: "#475569" }}>
+                    <strong>Experience:</strong> {selectedJob.experience_required}
+                  </p>
+                )}
+                {selectedJob.salary_range && (
+                  <p style={{ margin: "0 0 8px", color: "#475569" }}>
+                    <strong>Salary:</strong> {selectedJob.salary_range}
+                  </p>
+                )}
+                {selectedJob.deadline && (
+                  <p style={{ margin: 0, color: "#475569" }}>
+                    <strong>Deadline:</strong>{" "}
+                    {new Date(selectedJob.deadline).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
+
+              {/* Full Description */}
+              <div style={{ marginBottom: 32 }}>
+                <h4 style={{ margin: "0 0 12px", fontSize: "1.05rem", color: "#0f172a" }}>
+                  About the Role
+                </h4>
+                <p style={{ margin: 0, color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                  {selectedJob.description || "No further details available."}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => {
+                    setSelectedJob(null);
+                    setTab("apply", selectedJob.id);
+                  }}
+                  style={{ ...applyBtn, flex: 1 }}
+                >
+                  Apply Now
+                </button>
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  style={{ ...detailsBtn, flex: 1 }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-// ==================== PROFESSIONAL STYLES ====================
+// ==================== STYLES ====================
 const jobCard = {
   background: "#ffffff",
   borderRadius: "16px",
@@ -88,14 +218,14 @@ const jobCard = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  transition: "all 0.3s ease"
+  transition: "all 0.3s ease",
 };
 
 const jobHeader = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
-  marginBottom: "20px"
+  marginBottom: "20px",
 };
 
 const badge = {
@@ -105,34 +235,34 @@ const badge = {
   borderRadius: "9999px",
   fontSize: "0.85rem",
   fontWeight: "600",
-  whiteSpace: "nowrap"
+  whiteSpace: "nowrap",
 };
 
 const metaInfo = {
   color: "#475569",
   fontSize: "0.98rem",
   lineHeight: "1.7",
-  marginBottom: "20px"
+  marginBottom: "20px",
 };
 
 const description = {
   color: "#334155",
   lineHeight: "1.6",
   flex: 1,
-  marginBottom: "24px"
+  marginBottom: "24px",
 };
 
 const deadline = {
   color: "#ef4444",
   fontSize: "0.95rem",
   marginBottom: "24px",
-  fontWeight: "500"
+  fontWeight: "500",
 };
 
 const buttonGroup = {
   display: "flex",
   gap: "12px",
-  marginTop: "auto"
+  marginTop: "auto",
 };
 
 const applyBtn = {
@@ -145,7 +275,7 @@ const applyBtn = {
   fontWeight: "600",
   fontSize: "1.02rem",
   cursor: "pointer",
-  transition: "all 0.3s ease"
+  transition: "all 0.3s ease",
 };
 
 const detailsBtn = {
@@ -157,5 +287,26 @@ const detailsBtn = {
   borderRadius: "12px",
   fontWeight: "600",
   cursor: "pointer",
-  transition: "all 0.3s ease"
+  transition: "all 0.3s ease",
+};
+
+const modalContainer = {
+  position: "fixed",
+  inset: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1001,
+  padding: "20px",
+};
+
+const modalContent = {
+  background: "white",
+  borderRadius: "20px",
+  padding: "36px",
+  width: "100%",
+  maxWidth: "640px",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
 };
