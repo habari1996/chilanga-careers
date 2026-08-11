@@ -24,11 +24,15 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const [postingJob, setPostingJob] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "" });
   const [grade12Data, setGrade12Data] = useState({});
-  const [cvUrl, setCvUrl] = useState(null);
-  const [cvLoading, setCvLoading] = useState(false);
+  const [docUrls, setDocUrls] = useState({
+    cv: null,
+    qualifications: null,
+    tertiary: null,
+    nrc: null,
+  });
+  const [docsLoading, setDocsLoading] = useState(false);
   const [pendingJobs, setPendingJobs] = useState([]);
 
-  // ===== Role-based permissions =====
   const canApproveJobs = permissions?.canApproveJobs === true;
   const canPostJobs = permissions?.canPostJobs === true;
   const canExportCSV = permissions?.canExportCSV !== false;
@@ -39,7 +43,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     setTimeout(() => setToast({ show: false, message: "" }), 3500);
   };
 
-  // Fetch Grade 12 points
   useEffect(() => {
     const fetchGrade12Results = async () => {
       if (!apps.length) return;
@@ -52,10 +55,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           .from("grade12_results")
           .select("application_id, points")
           .in("application_id", chunk);
-        if (error) {
-          console.error(error);
-          continue;
-        }
+        if (error) continue;
         data.forEach((row) => {
           if (!pointsMap[row.application_id]) pointsMap[row.application_id] = 0;
           pointsMap[row.application_id] += row.points || 0;
@@ -66,7 +66,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     fetchGrade12Results();
   }, [apps]);
 
-  // Fetch pending jobs
   const fetchPendingJobs = async () => {
     const { data, error } = await supabase
       .from("jobs")
@@ -89,38 +88,35 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
 
   useEffect(() => {
     let active = true;
-    const resolveCv = async () => {
-      setCvUrl(null);
-      const path = cvPathFromStored(selectedApplicant?.cv_url);
-      if (!path) return;
-      setCvLoading(true);
-      const { data, error } = await supabase.storage
-        .from("cvs")
-        .createSignedUrl(path, 3600);
+    const resolveDocs = async () => {
+      setDocUrls({ cv: null, qualifications: null, tertiary: null, nrc: null });
+      if (!selectedApplicant) return;
+      setDocsLoading(true);
+      const resolveOne = async (stored) => {
+        const path = cvPathFromStored(stored);
+        if (!path) return null;
+        const { data, error } = await supabase.storage.from("cvs").createSignedUrl(path, 3600);
+        return error ? null : data.signedUrl;
+      };
+      const [cv, qualifications, tertiary, nrc] = await Promise.all([
+        resolveOne(selectedApplicant.cv_url),
+        resolveOne(selectedApplicant.qualifications_url),
+        resolveOne(selectedApplicant.tertiary_certificate_url),
+        resolveOne(selectedApplicant.nrc_url),
+      ]);
       if (active) {
-        setCvUrl(error ? null : data.signedUrl);
-        setCvLoading(false);
+        setDocUrls({ cv, qualifications, tertiary, nrc });
+        setDocsLoading(false);
       }
     };
-    resolveCv();
-    return () => {
-      active = false;
-    };
+    resolveDocs();
+    return () => { active = false; };
   }, [selectedApplicant]);
 
   const qualificationsList = [
-    "All",
-    "Grade 12 Certificate",
-    "Certificate",
-    "Diploma",
-    "Advanced Diploma",
-    "Bachelor's Degree",
-    "Bachelor of Engineering",
-    "Bachelor of Science",
-    "Bachelor of Commerce",
-    "Bachelor of Business Administration",
-    "Master's Degree",
-    "Other",
+    "All", "Grade 12 Certificate", "Certificate", "Diploma", "Advanced Diploma",
+    "Bachelor's Degree", "Bachelor of Engineering", "Bachelor of Science",
+    "Bachelor of Commerce", "Bachelor of Business Administration", "Master's Degree", "Other",
   ];
 
   const getBestMatchScore = (app) => {
@@ -156,51 +152,22 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
 
   const filteredApps = useMemo(() => {
     let result = apps.filter((app) => {
-      const matchesSearch =
-        !search ||
-        app.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-        app.email?.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !search || app.full_name?.toLowerCase().includes(search.toLowerCase()) || app.email?.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === "All" || app.status === statusFilter;
-      const matchesQualification =
-        qualificationFilter === "All" ||
-        (app.qualification &&
-          app.qualification.toLowerCase().includes(qualificationFilter.toLowerCase()));
+      const matchesQualification = qualificationFilter === "All" || (app.qualification && app.qualification.toLowerCase().includes(qualificationFilter.toLowerCase()));
       const age = parseInt(app.age);
       const matchesAgeMin = !ageMin || (age && age >= parseInt(ageMin));
       const matchesAgeMax = !ageMax || (age && age <= parseInt(ageMax));
       const appPoints = grade12Data[app.id] || 0;
       const matchesMinPoints = !minPoints || appPoints >= parseInt(minPoints);
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesQualification &&
-        matchesAgeMin &&
-        matchesAgeMax &&
-        matchesMinPoints
-      );
+      return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax && matchesMinPoints;
     });
-
-    if (sortMode === "bestMatch") {
-      result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
-    } else if (sortMode === "points") {
-      result.sort((a, b) => (grade12Data[a.id] || 0) - (grade12Data[b.id] || 0));
-    } else if (sortMode === "name") {
-      result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
-    } else {
-      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
+    if (sortMode === "bestMatch") result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
+    else if (sortMode === "points") result.sort((a, b) => (grade12Data[a.id] || 0) - (grade12Data[b.id] || 0));
+    else if (sortMode === "name") result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
+    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     return result;
-  }, [
-    apps,
-    search,
-    statusFilter,
-    qualificationFilter,
-    ageMin,
-    ageMax,
-    minPoints,
-    sortMode,
-    grade12Data,
-  ]);
+  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax, minPoints, sortMode, grade12Data]);
 
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalApps = apps.length;
@@ -209,128 +176,55 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const hiredApps = apps.filter((a) => a.status === "Hired").length;
 
   const updateStatus = async (id, newStatus) => {
-    if (!canUpdateStatus) {
-      alert("You do not have permission to update application status.");
-      return;
-    }
-    const { error } = await supabase
-      .from("applications")
-      .update({ status: newStatus })
-      .eq("id", id);
+    if (!canUpdateStatus) { alert("You do not have permission to update application status."); return; }
+    const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", id);
     if (!error) {
       refreshData();
-      if (selectedApplicant?.id === id) {
-        setSelectedApplicant({ ...selectedApplicant, status: newStatus });
-      }
+      if (selectedApplicant?.id === id) setSelectedApplicant({ ...selectedApplicant, status: newStatus });
       showToast(`Status updated to ${newStatus}.`);
     }
   };
 
-  const handleJobChange = (e) => {
-    setNewJob({ ...newJob, [e.target.name]: e.target.value });
-  };
+  const handleJobChange = (e) => setNewJob({ ...newJob, [e.target.name]: e.target.value });
 
   const postNewJob = async () => {
-    if (!canPostJobs) {
-      alert("You do not have permission to post jobs.");
-      return;
-    }
-    if (!newJob.title.trim() || !newJob.description.trim()) {
-      alert("Job Title and Description are required!");
-      return;
-    }
-
+    if (!canPostJobs) { alert("You do not have permission to post jobs."); return; }
+    if (!newJob.title.trim() || !newJob.description.trim()) { alert("Job Title and Description are required!"); return; }
     setPostingJob(true);
     try {
       const { error } = await supabase.from("jobs").insert([{
-        title: newJob.title.trim(),
-        location: newJob.location || "Lusaka",
-        department: newJob.department || "Open (Multiple fields)",
-        job_type: newJob.job_type || "Full-time",
-        description: newJob.description.trim(),
-        deadline: newJob.deadline || null,
-        status: "Pending Approval"
+        title: newJob.title.trim(), location: newJob.location || "Lusaka",
+        department: newJob.department || "Open (Multiple fields)", job_type: newJob.job_type || "Full-time",
+        description: newJob.description.trim(), deadline: newJob.deadline || null, status: "Pending Approval"
       }]);
-
       if (error) throw error;
-
       alert("Job submitted for approval successfully!");
       setShowJobModal(false);
-      setNewJob({
-        title: "",
-        location: "Lusaka",
-        department: "Open (Multiple fields)",
-        job_type: "Full-time",
-        description: "",
-        deadline: ""
-      });
-      fetchPendingJobs();
-      refreshData();
-    } catch (err) {
-      alert("Failed to post job: " + err.message);
-    } finally {
-      setPostingJob(false);
-    }
+      setNewJob({ title: "", location: "Lusaka", department: "Open (Multiple fields)", job_type: "Full-time", description: "", deadline: "" });
+      fetchPendingJobs(); refreshData();
+    } catch (err) { alert("Failed to post job: " + err.message); }
+    finally { setPostingJob(false); }
   };
 
   const approveJob = async (jobId) => {
-    if (!canApproveJobs) {
-      alert("You do not have permission to approve jobs.");
-      return;
-    }
-    const { error } = await supabase
-      .from("jobs")
-      .update({
-        status: "Published",
-        approved_at: new Date().toISOString()
-      })
-      .eq("id", jobId);
-
-    if (!error) {
-      showToast("Job approved and published successfully!");
-      fetchPendingJobs();
-      refreshData();
-    } else {
-      alert("Failed to approve job: " + error.message);
-    }
+    if (!canApproveJobs) { alert("You do not have permission to approve jobs."); return; }
+    const { error } = await supabase.from("jobs").update({ status: "Published", approved_at: new Date().toISOString() }).eq("id", jobId);
+    if (!error) { showToast("Job approved and published successfully!"); fetchPendingJobs(); refreshData(); }
+    else alert("Failed to approve job: " + error.message);
   };
 
   const rejectJob = async (jobId) => {
-    if (!canApproveJobs) {
-      alert("You do not have permission to reject jobs.");
-      return;
-    }
+    if (!canApproveJobs) { alert("You do not have permission to reject jobs."); return; }
     const reason = prompt("Optional rejection reason:");
-    const { error } = await supabase
-      .from("jobs")
-      .update({
-        status: "Rejected",
-        rejection_reason: reason || null
-      })
-      .eq("id", jobId);
-
-    if (!error) {
-      showToast("Job rejected.");
-      fetchPendingJobs();
-    } else {
-      alert("Failed to reject job: " + error.message);
-    }
+    const { error } = await supabase.from("jobs").update({ status: "Rejected", rejection_reason: reason || null }).eq("id", jobId);
+    if (!error) { showToast("Job rejected."); fetchPendingJobs(); }
+    else alert("Failed to reject job: " + error.message);
   };
 
   const exportCSV = () => {
-    if (!canExportCSV) {
-      alert("You do not have permission to export.");
-      return;
-    }
-    if (!filteredApps.length) {
-      alert("No applications to export.");
-      return;
-    }
-    const cols = [
-      "full_name", "email", "phone", "age", "gender",
-      "qualification", "institution", "field_of_study",
-      "total_points", "status", "created_at"
-    ];
+    if (!canExportCSV) { alert("You do not have permission to export."); return; }
+    if (!filteredApps.length) { alert("No applications to export."); return; }
+    const cols = ["full_name", "email", "phone", "age", "gender", "qualification", "institution", "field_of_study", "total_points", "status", "created_at"];
     const header = cols.join(",");
     const rows = filteredApps.map((app) => {
       const points = grade12Data[app.id] || 0;
@@ -351,46 +245,39 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   };
 
   const statusBadge = (status) => {
-    const base = {
-      padding: "4px 12px",
-      borderRadius: "9999px",
-      fontSize: "0.75rem",
-      fontWeight: 600,
-    };
-    if (status === "New")
-      return { ...base, background: "#dcfce7", color: "#166534", border: "1px solid #86efac" };
+    const base = { padding: "4px 12px", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 600 };
+    if (status === "New") return { ...base, background: "#dcfce7", color: "#166534", border: "1px solid #86efac" };
     if (status === "Shortlisted") return { ...base, background: "#fef3c7", color: "#854d0e" };
     if (status === "Hired") return { ...base, background: "#dbeafe", color: "#1e40af" };
     if (status === "Rejected") return { ...base, background: "#fee2e2", color: "#991b1b" };
     return { ...base, background: "#f1f5f9", color: "#475569" };
   };
 
+  const renderDocSection = (label, url) => (
+    <div>
+      <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: 6 }}>{label}</div>
+      {url ? (
+        <>
+          <div style={resumeContainer}><iframe src={url} style={iframeStyle} title={label} /></div>
+          <a href={url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
+        </>
+      ) : (
+        <p style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "0.85rem", margin: 0 }}>Not uploaded</p>
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <div
-        style={{
-          marginRight: selectedApplicant ? "420px" : "0",
-          transition: "margin-right 0.25s ease",
-        }}
-      >
-        {/* Header */}
+      <div style={{ marginRight: selectedApplicant ? "420px" : "0", transition: "margin-right 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>Recruiter Dashboard</h2>
           <div style={{ display: "flex", gap: 12 }}>
-            {canPostJobs && (
-              <button onClick={() => setShowJobModal(true)} style={addBtn}>
-                + Post New Job
-              </button>
-            )}
-            {canExportCSV && (
-              <button onClick={exportCSV} style={exportBtn}>
-                Export CSV
-              </button>
-            )}
+            {canPostJobs && <button onClick={() => setShowJobModal(true)} style={addBtn}>+ Post New Job</button>}
+            {canExportCSV && <button onClick={exportCSV} style={exportBtn}>Export CSV</button>}
           </div>
         </div>
 
-        {/* Summary Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 24 }}>
           <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px" }}>
             <div style={{ fontSize: "0.9rem", color: "#64748b" }}>Total Applications</div>
@@ -410,100 +297,34 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         </div>
 
-        {/* ========== PENDING JOB APPROVALS ========== */}
         {pendingJobs.length > 0 && (
           <div style={{ marginBottom: 32 }}>
             <h3 style={{ margin: "0 0 16px 0", fontSize: "1.2rem", fontWeight: 700, color: "#0f172a" }}>
               Pending Job Approvals
-              <span style={{
-                marginLeft: 10,
-                background: "#fef3c7",
-                color: "#92400e",
-                fontSize: "0.8rem",
-                padding: "3px 10px",
-                borderRadius: 9999,
-                fontWeight: 600
-              }}>
-                {pendingJobs.length}
-              </span>
+              <span style={{ marginLeft: 10, background: "#fef3c7", color: "#92400e", fontSize: "0.8rem", padding: "3px 10px", borderRadius: 9999, fontWeight: 600 }}>{pendingJobs.length}</span>
             </h3>
-
             <div style={{ display: "grid", gap: 16 }}>
               {pendingJobs.map((job) => (
-                <div key={job.id} style={{
-                  background: "white",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 14,
-                  padding: "20px 24px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: 20
-                }}>
+                <div key={job.id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20 }}>
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", fontWeight: 600, color: "#0f172a" }}>
-                      {job.title}
-                    </h4>
+                    <h4 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", fontWeight: 600, color: "#0f172a" }}>{job.title}</h4>
                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 8, fontSize: "0.9rem", color: "#64748b" }}>
                       <span>📍 {job.location || "Zambia"}</span>
                       <span>🏢 {job.department || "Open"}</span>
                       <span>💼 {job.job_type || "Full-time"}</span>
-                      {job.deadline && (
-                        <span>📅 Deadline: {new Date(job.deadline).toLocaleDateString("en-GB")}</span>
-                      )}
+                      {job.deadline && <span>📅 Deadline: {new Date(job.deadline).toLocaleDateString("en-GB")}</span>}
                     </div>
                     <p style={{ margin: 0, color: "#475569", fontSize: "0.95rem", lineHeight: 1.5 }}>
-                      {job.description
-                        ? (job.description.length > 160 ? job.description.substring(0, 160) + "..." : job.description)
-                        : "No description"}
+                      {job.description ? (job.description.length > 160 ? job.description.substring(0, 160) + "..." : job.description) : "No description"}
                     </p>
                   </div>
-
                   {canApproveJobs ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 120 }}>
-                      <button
-                        onClick={() => approveJob(job.id)}
-                        style={{
-                          padding: "10px 16px",
-                          background: "#16a34a",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 10,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontSize: "0.9rem"
-                        }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => rejectJob(job.id)}
-                        style={{
-                          padding: "10px 16px",
-                          background: "#fee2e2",
-                          color: "#991b1b",
-                          border: "none",
-                          borderRadius: 10,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontSize: "0.9rem"
-                        }}
-                      >
-                        Reject
-                      </button>
+                      <button onClick={() => approveJob(job.id)} style={{ padding: "10px 16px", background: "#16a34a", color: "white", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "0.9rem" }}>Approve</button>
+                      <button onClick={() => rejectJob(job.id)} style={{ padding: "10px 16px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "0.9rem" }}>Reject</button>
                     </div>
                   ) : (
-                    <div style={{
-                      padding: "10px 14px",
-                      background: "#f1f5f9",
-                      borderRadius: 10,
-                      fontSize: "0.85rem",
-                      color: "#64748b",
-                      textAlign: "center",
-                      minWidth: 130
-                    }}>
-                      Waiting for<br />HR Director approval
-                    </div>
+                    <div style={{ padding: "10px 14px", background: "#f1f5f9", borderRadius: 10, fontSize: "0.85rem", color: "#64748b", textAlign: "center", minWidth: 130 }}>Waiting for<br />HR Director approval</div>
                   )}
                 </div>
               ))}
@@ -511,79 +332,44 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         )}
 
-        {/* Filters */}
         <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <input
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            style={{ ...searchInput, flex: 1, minWidth: 200 }}
-          />
+          <input placeholder="Search by name or email..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ ...searchInput, flex: 1, minWidth: 200 }} />
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
-            <option value="All">All Status</option>
-            <option value="New">New</option>
-            <option value="Shortlisted">Shortlisted</option>
-            <option value="Hired">Hired</option>
-            <option value="Rejected">Rejected</option>
+            <option value="All">All Status</option><option value="New">New</option><option value="Shortlisted">Shortlisted</option><option value="Hired">Hired</option><option value="Rejected">Rejected</option>
           </select>
           <select value={qualificationFilter} onChange={(e) => { setQualificationFilter(e.target.value); setPage(1); }} style={selectStyle}>
-            {qualificationsList.map((q) => (
-              <option key={q} value={q}>{q}</option>
-            ))}
+            {qualificationsList.map((q) => <option key={q} value={q}>{q}</option>)}
           </select>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="number" placeholder="Min Age" value={ageMin} onChange={(e) => { setAgeMin(e.target.value); setPage(1); }}
-              style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            <input type="number" placeholder="Min Age" value={ageMin} onChange={(e) => { setAgeMin(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
             <span style={{ color: "#64748b" }}>-</span>
-            <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => { setAgeMax(e.target.value); setPage(1); }}
-              style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => { setAgeMax(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
           </div>
-          <input type="number" placeholder="Min Total Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }}
-            style={{ width: 140, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+          <input type="number" placeholder="Min Total Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }} style={{ width: 140, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
           <select value={sortMode} onChange={(e) => { setSortMode(e.target.value); setPage(1); }} style={selectStyle}>
-            <option value="newest">Newest First</option>
-            <option value="bestMatch">Best Match</option>
-            <option value="points">Best Results (Lowest Points)</option>
-            <option value="name">Name A-Z</option>
+            <option value="newest">Newest First</option><option value="bestMatch">Best Match</option><option value="points">Best Results (Lowest Points)</option><option value="name">Name A-Z</option>
           </select>
         </div>
 
-        {/* Application Cards */}
         {paginatedApps.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}>
-            <p style={{ fontSize: 18 }}>No applications match your filters.</p>
-          </div>
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}><p style={{ fontSize: 18 }}>No applications match your filters.</p></div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
             {paginatedApps.map((app) => {
               const isNew = app.status === "New";
               const totalPoints = grade12Data[app.id] || 0;
               return (
-                <div
-                  key={app.id}
-                  style={{
-                    ...cardStyle,
-                    borderLeft: isNew ? "4px solid #22c55e" : "4px solid transparent",
-                    background: isNew ? "#f8fff9" : "white",
-                  }}
-                  onClick={() => setSelectedApplicant(app)}
-                >
+                <div key={app.id} style={{ ...cardStyle, borderLeft: isNew ? "4px solid #22c55e" : "4px solid transparent", background: isNew ? "#f8fff9" : "white" }} onClick={() => setSelectedApplicant(app)}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <h4 style={{ margin: "0 0 4px 0" }}>{app.full_name}</h4>
-                    {isNew && (
-                      <span style={{ fontSize: "10px", background: "#22c55e", color: "white", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>
-                        NEW
-                      </span>
-                    )}
+                    {isNew && <span style={{ fontSize: "10px", background: "#22c55e", color: "white", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>NEW</span>}
                   </div>
                   <p style={{ margin: "2px 0", color: "#64748b", fontSize: 14 }}>{app.email}</p>
                   <p style={{ margin: "4px 0", fontSize: 14 }}>{app.qualification} — {app.institution}</p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
-                      <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>
-                        Points: {totalPoints}
-                      </span>
+                      <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>Points: {totalPoints}</span>
                     </div>
                     <span style={statusBadge(app.status)}>{app.status || "New"}</span>
                   </div>
@@ -594,20 +380,14 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         )}
       </div>
 
-      {/* ========== SIDEBAR ========== */}
       {selectedApplicant && (
         <>
-          <div
-            onClick={() => setSelectedApplicant(null)}
-            style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", zIndex: 90, backdropFilter: "blur(2px)" }}
-          />
+          <div onClick={() => setSelectedApplicant(null)} style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", zIndex: 90, backdropFilter: "blur(2px)" }} />
           <div style={sidebarStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>{selectedApplicant.full_name}</h3>
-                <div style={{ marginTop: 6 }}>
-                  <span style={statusBadge(selectedApplicant.status || "New")}>{selectedApplicant.status || "New"}</span>
-                </div>
+                <div style={{ marginTop: 6 }}><span style={statusBadge(selectedApplicant.status || "New")}>{selectedApplicant.status || "New"}</span></div>
               </div>
               <button onClick={() => setSelectedApplicant(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#64748b", padding: 4, lineHeight: 1 }}>✕</button>
             </div>
@@ -628,33 +408,26 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
                     <div style={{ fontSize: "0.85rem", color: "#0369a1", fontWeight: 500 }}>Total Grade 12 Points</div>
                     <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 2 }}>Lower is better</div>
                   </div>
-                  <div style={{
-                    fontSize: "1.8rem", fontWeight: 700,
-                    color: (grade12Data[selectedApplicant.id] || 0) <= 12 ? "#166534" : (grade12Data[selectedApplicant.id] || 0) <= 20 ? "#854d0e" : "#991b1b"
-                  }}>
+                  <div style={{ fontSize: "1.8rem", fontWeight: 700, color: (grade12Data[selectedApplicant.id] || 0) <= 12 ? "#166534" : (grade12Data[selectedApplicant.id] || 0) <= 20 ? "#854d0e" : "#991b1b" }}>
                     {grade12Data[selectedApplicant.id] || 0}
                   </div>
                 </div>
               </div>
             </div>
 
-            {selectedApplicant.cv_url ? (
-              <div style={{ marginBottom: 24 }}>
-                <h4 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>📄 Resume / CV</h4>
-                {cvLoading ? (
-                  <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "0.9rem" }}>Loading CV…</p>
-                ) : cvUrl ? (
-                  <>
-                    <div style={resumeContainer}><iframe src={cvUrl} style={iframeStyle} title="Applicant Resume" /></div>
-                    <a href={cvUrl} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
-                  </>
-                ) : (
-                  <p style={{ color: "#ef4444", fontStyle: "italic", fontSize: "0.9rem" }}>Could not load CV.</p>
-                )}
-              </div>
-            ) : (
-              <p style={{ color: "#94a3b8", fontStyle: "italic", marginBottom: 24 }}>No CV uploaded.</p>
-            )}
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ margin: "0 0 14px 0", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>📎 Documents</h4>
+              {docsLoading ? (
+                <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "0.9rem" }}>Loading documents…</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {renderDocSection("Resume / CV", docUrls.cv)}
+                  {renderDocSection("Academic Results / Transcript", docUrls.qualifications)}
+                  {renderDocSection("Degree / Tertiary Certificate", docUrls.tertiary)}
+                  {renderDocSection("National Registration Card (NRC)", docUrls.nrc)}
+                </div>
+              )}
+            </div>
 
             {canUpdateStatus && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -667,19 +440,12 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         </>
       )}
 
-      {/* Toast */}
       {toast.show && (
-        <div style={{
-          position: "fixed", bottom: "24px", right: "24px",
-          background: "#0f172a", color: "white",
-          padding: "14px 22px", borderRadius: "12px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px"
-        }}>
+        <div style={{ position: "fixed", bottom: "24px", right: "24px", background: "#0f172a", color: "white", padding: "14px 22px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px" }}>
           {toast.message}
         </div>
       )}
 
-      {/* ========== POST NEW JOB MODAL ========== */}
       {showJobModal && canPostJobs && (
         <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
           <div style={modalStyle}>
@@ -690,13 +456,11 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
               </div>
               <button onClick={() => setShowJobModal(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#64748b", lineHeight: 1 }}>✕</button>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div>
                 <label style={mLabel}>Job Title *</label>
                 <input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" />
               </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div>
                   <label style={mLabel}>Location</label>
@@ -716,7 +480,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
                   </select>
                 </div>
               </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div>
                   <label style={mLabel}>Job Type</label>
@@ -732,22 +495,17 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
                   <input name="deadline" type="date" style={mInput} value={newJob.deadline} onChange={handleJobChange} />
                 </div>
               </div>
-
               <div>
                 <label style={mLabel}>Description *</label>
                 <textarea name="description" style={{ ...mInput, minHeight: "130px", resize: "vertical" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role, requirements, and what the successful candidate will do..." />
               </div>
             </div>
-
             <div style={{ marginTop: 20, padding: "12px 16px", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, fontSize: "0.9rem", color: "#0369a1" }}>
               After posting, this job will be marked as <strong>Pending Approval</strong> and will only appear on the public Jobs page once approved by the HR Director.
             </div>
-
             <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
               <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
-              <button onClick={postNewJob} disabled={postingJob} style={postBtn}>
-                {postingJob ? "Submitting..." : "Submit for Approval"}
-              </button>
+              <button onClick={postNewJob} disabled={postingJob} style={postBtn}>{postingJob ? "Submitting..." : "Submit for Approval"}</button>
             </div>
           </div>
         </div>
@@ -756,13 +514,12 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   );
 }
 
-// ========== STYLES ==========
 const cardStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: 16, padding: "20px 20px 16px", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" };
 const searchInput = { flex: 1, minWidth: 220, padding: "12px 16px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem" };
 const selectStyle = { padding: "12px 16px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem", minWidth: 160 };
 const addBtn = { padding: "10px 20px", background: "#0f172a", color: "white", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
 const exportBtn = { padding: "10px 20px", background: "white", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
-const sidebarStyle = { position: "fixed", top: 0, right: 0, width: "420px", maxWidth: "100vw", height: "100vh", background: "white", borderLeft: "1px solid #e2e8f0", padding: "24px 24px 40px", overflowY: "auto", boxShadow: "-8px 0 30px rgba(0,0,0,0.12)", zIndex: 100 };
+const sidebarStyle = { position: "fixed", top: 0, right: 0, width: "420px", maxWidth: "100vw", height: "100vh", background: "white", borderLeft: "1px solid #e2e8f0", padding: "24px 24px 40px", overflowY: "auto", boxShadow: "-8px 0 30px rgba(0,0,0,0.12)", zIndex: 100, transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)" };
 const shortlistBtn = { padding: "12px", background: "#fef3c7", color: "#854d0e", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
 const hireBtn = { padding: "12px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
 const rejectBtn = { padding: "12px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
@@ -773,7 +530,7 @@ const postBtn = { flex: 1, padding: "14px", background: "#0f172a", color: "white
 const overlayStyle = { position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 };
 const modalStyle = { background: "white", borderRadius: 20, padding: "32px", width: "100%", maxWidth: "720px", maxHeight: "90vh", overflowY: "auto" };
 const resumeContainer = { border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#f8fafc" };
-const iframeStyle = { width: "100%", height: "320px", border: "none" };
+const iframeStyle = { width: "100%", height: "280px", border: "none" };
 const openLink = { display: "inline-block", marginTop: 8, color: "#0ea5e9", textDecoration: "none", fontSize: "0.95rem" };
 const infoRow = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 12 };
 const infoLabel = { fontSize: "0.8rem", color: "#64748b", fontWeight: 500, minWidth: 90 };
