@@ -13,7 +13,14 @@ export default function Dashboard({ apps, refreshData }) {
   const [page, setPage] = useState(1);
   const itemsPerPage = 25;
   const [showJobModal, setShowJobModal] = useState(false);
-  const [newJob, setNewJob] = useState({ title: "", location: "", description: "" });
+  const [newJob, setNewJob] = useState({
+    title: "",
+    location: "Lusaka",
+    department: "Open (Multiple fields)",
+    job_type: "Full-time",
+    description: "",
+    deadline: ""
+  });
   const [postingJob, setPostingJob] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "" });
   const [grade12Data, setGrade12Data] = useState({});
@@ -104,7 +111,6 @@ export default function Dashboard({ apps, refreshData }) {
     else if (qual.includes("diploma")) score += 55;
     else if (qual.includes("certificate") || qual.includes("grade 12")) score += 40;
     else score += 30;
-
     const age = parseInt(app.age);
     if (age && age >= 20 && age <= 26) score += 20;
     else if (age && age >= 27 && age <= 30) score += 10;
@@ -200,17 +206,35 @@ export default function Dashboard({ apps, refreshData }) {
   };
 
   const postNewJob = async () => {
-    if (!newJob.title || !newJob.description) {
-      alert("Title and Description are required!");
+    if (!newJob.title.trim() || !newJob.description.trim()) {
+      alert("Job Title and Description are required!");
       return;
     }
+
     setPostingJob(true);
     try {
-      const { error } = await supabase.from("jobs").insert([newJob]);
+      const { error } = await supabase.from("jobs").insert([{
+        title: newJob.title.trim(),
+        location: newJob.location || "Lusaka",
+        department: newJob.department || "Open (Multiple fields)",
+        job_type: newJob.job_type || "Full-time",
+        description: newJob.description.trim(),
+        deadline: newJob.deadline || null,
+        status: "Pending Approval"
+      }]);
+
       if (error) throw error;
-      alert("Job posted successfully!");
+
+      alert("Job submitted for approval successfully!");
       setShowJobModal(false);
-      setNewJob({ title: "", location: "", description: "" });
+      setNewJob({
+        title: "",
+        location: "Lusaka",
+        department: "Open (Multiple fields)",
+        job_type: "Full-time",
+        description: "",
+        deadline: ""
+      });
       refreshData();
     } catch (err) {
       alert("Failed to post job: " + err.message);
@@ -277,14 +301,12 @@ export default function Dashboard({ apps, refreshData }) {
 
   return (
     <div>
-      {/* Main content - shifts when sidebar opens */}
       <div
         style={{
           marginRight: selectedApplicant ? "420px" : "0",
           transition: "margin-right 0.25s ease",
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: "flex",
@@ -304,7 +326,6 @@ export default function Dashboard({ apps, refreshData }) {
           </div>
         </div>
 
-        {/* Summary Cards */}
         <div
           style={{
             display: "grid",
@@ -313,160 +334,53 @@ export default function Dashboard({ apps, refreshData }) {
             marginBottom: 24,
           }}
         >
-          <div
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "16px 20px",
-            }}
-          >
+          <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px" }}>
             <div style={{ fontSize: "0.9rem", color: "#64748b" }}>Total Applications</div>
             <div style={{ fontSize: "2rem", fontWeight: 700, color: "#0f172a" }}>{totalApps}</div>
           </div>
-          <div
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "16px 20px",
-            }}
-          >
+          <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px" }}>
             <div style={{ fontSize: "0.9rem", color: "#64748b" }}>New Applications</div>
             <div style={{ fontSize: "2rem", fontWeight: 700, color: "#16a34a" }}>{newApps}</div>
           </div>
-          <div
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "16px 20px",
-            }}
-          >
+          <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px" }}>
             <div style={{ fontSize: "0.9rem", color: "#64748b" }}>Shortlisted</div>
-            <div style={{ fontSize: "2rem", fontWeight: 700, color: "#ca8a04" }}>
-              {shortlistedApps}
-            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 700, color: "#ca8a04" }}>{shortlistedApps}</div>
           </div>
-          <div
-            style={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "16px 20px",
-            }}
-          >
+          <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px" }}>
             <div style={{ fontSize: "0.9rem", color: "#64748b" }}>Hired</div>
             <div style={{ fontSize: "2rem", fontWeight: 700, color: "#2563eb" }}>{hiredApps}</div>
           </div>
         </div>
 
-        {/* Filters */}
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            marginBottom: 20,
-            flexWrap: "wrap",
-            alignItems: "flex-end",
-          }}
-        >
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
           <input
             placeholder="Search by name or email..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             style={{ ...searchInput, flex: 1, minWidth: 200 }}
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            style={selectStyle}
-          >
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}>
             <option value="All">All Status</option>
             <option value="New">New</option>
             <option value="Shortlisted">Shortlisted</option>
             <option value="Hired">Hired</option>
             <option value="Rejected">Rejected</option>
           </select>
-          <select
-            value={qualificationFilter}
-            onChange={(e) => {
-              setQualificationFilter(e.target.value);
-              setPage(1);
-            }}
-            style={selectStyle}
-          >
+          <select value={qualificationFilter} onChange={(e) => { setQualificationFilter(e.target.value); setPage(1); }} style={selectStyle}>
             {qualificationsList.map((q) => (
-              <option key={q} value={q}>
-                {q}
-              </option>
+              <option key={q} value={q}>{q}</option>
             ))}
           </select>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="number"
-              placeholder="Min Age"
-              value={ageMin}
-              onChange={(e) => {
-                setAgeMin(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                width: 90,
-                padding: "10px 12px",
-                border: "1px solid #cbd5e1",
-                borderRadius: 10,
-                fontSize: "0.95rem",
-              }}
-            />
+            <input type="number" placeholder="Min Age" value={ageMin} onChange={(e) => { setAgeMin(e.target.value); setPage(1); }}
+              style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
             <span style={{ color: "#64748b" }}>-</span>
-            <input
-              type="number"
-              placeholder="Max Age"
-              value={ageMax}
-              onChange={(e) => {
-                setAgeMax(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                width: 90,
-                padding: "10px 12px",
-                border: "1px solid #cbd5e1",
-                borderRadius: 10,
-                fontSize: "0.95rem",
-              }}
-            />
+            <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => { setAgeMax(e.target.value); setPage(1); }}
+              style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
           </div>
-          <input
-            type="number"
-            placeholder="Min Total Points"
-            value={minPoints}
-            onChange={(e) => {
-              setMinPoints(e.target.value);
-              setPage(1);
-            }}
-            style={{
-              width: 140,
-              padding: "10px 12px",
-              border: "1px solid #cbd5e1",
-              borderRadius: 10,
-              fontSize: "0.95rem",
-            }}
-          />
-          <select
-            value={sortMode}
-            onChange={(e) => {
-              setSortMode(e.target.value);
-              setPage(1);
-            }}
-            style={selectStyle}
-          >
+          <input type="number" placeholder="Min Total Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }}
+            style={{ width: 140, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+          <select value={sortMode} onChange={(e) => { setSortMode(e.target.value); setPage(1); }} style={selectStyle}>
             <option value="newest">Newest First</option>
             <option value="bestMatch">Best Match</option>
             <option value="points">Best Results (Lowest Points)</option>
@@ -474,19 +388,12 @@ export default function Dashboard({ apps, refreshData }) {
           </select>
         </div>
 
-        {/* Cards */}
         {paginatedApps.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}>
             <p style={{ fontSize: 18 }}>No applications match your filters.</p>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-              gap: "20px",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
             {paginatedApps.map((app) => {
               const isNew = app.status === "New";
               const totalPoints = grade12Data[app.id] || 0;
@@ -500,55 +407,20 @@ export default function Dashboard({ apps, refreshData }) {
                   }}
                   onClick={() => setSelectedApplicant(app)}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                    }}
-                  >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <h4 style={{ margin: "0 0 4px 0" }}>{app.full_name}</h4>
                     {isNew && (
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          background: "#22c55e",
-                          color: "white",
-                          padding: "1px 8px",
-                          borderRadius: "9999px",
-                          fontWeight: 600,
-                        }}
-                      >
+                      <span style={{ fontSize: "10px", background: "#22c55e", color: "white", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>
                         NEW
                       </span>
                     )}
                   </div>
                   <p style={{ margin: "2px 0", color: "#64748b", fontSize: 14 }}>{app.email}</p>
-                  <p style={{ margin: "4px 0", fontSize: 14 }}>
-                    {app.qualification} — {app.institution}
-                  </p>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginTop: 12,
-                    }}
-                  >
+                  <p style={{ margin: "4px 0", fontSize: 14 }}>{app.qualification} — {app.institution}</p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: "13px", color: "#64748b" }}>
-                        {getTimeAgo(app.created_at)}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          background: "#e0f2fe",
-                          color: "#0369a1",
-                          padding: "1px 8px",
-                          borderRadius: "9999px",
-                          fontWeight: 600,
-                        }}
-                      >
+                      <span style={{ fontSize: "13px", color: "#64748b" }}>{getTimeAgo(app.created_at)}</span>
+                      <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>
                         Points: {totalPoints}
                       </span>
                     </div>
@@ -559,293 +431,151 @@ export default function Dashboard({ apps, refreshData }) {
             })}
           </div>
         )}
-
-        {totalPages > 1 && <div style={{ textAlign: "center", margin: "40px 0" }}>...</div>}
       </div>
 
-      {/* ========== SIDEBAR ========== */}
       {selectedApplicant && (
         <>
-          {/* Overlay */}
           <div
             onClick={() => setSelectedApplicant(null)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(15, 23, 42, 0.5)",
-              zIndex: 90,
-              backdropFilter: "blur(2px)",
-            }}
+            style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", zIndex: 90, backdropFilter: "blur(2px)" }}
           />
-
-          {/* Sidebar Panel */}
           <div style={sidebarStyle}>
-            {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 20,
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>
-                  {selectedApplicant.full_name}
-                </h3>
+                <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>{selectedApplicant.full_name}</h3>
                 <div style={{ marginTop: 6 }}>
-                  <span style={statusBadge(selectedApplicant.status || "New")}>
-                    {selectedApplicant.status || "New"}
-                  </span>
+                  <span style={statusBadge(selectedApplicant.status || "New")}>{selectedApplicant.status || "New"}</span>
                 </div>
               </div>
-              <button
-                onClick={() => setSelectedApplicant(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: 22,
-                  cursor: "pointer",
-                  color: "#64748b",
-                  padding: 4,
-                  lineHeight: 1,
-                }}
-              >
-                ✕
-              </button>
+              <button onClick={() => setSelectedApplicant(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#64748b", padding: 4, lineHeight: 1 }}>✕</button>
             </div>
 
-            {/* Basic Info */}
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: 12,
-                padding: "16px 18px",
-                marginBottom: 20,
-              }}
-            >
-              <div style={infoRow}>
-                <span style={infoLabel}>Email</span>
-                <span style={infoValue}>{selectedApplicant.email || "—"}</span>
-              </div>
-              <div style={infoRow}>
-                <span style={infoLabel}>Phone</span>
-                <span style={infoValue}>{selectedApplicant.phone || "—"}</span>
-              </div>
-              <div style={infoRow}>
-                <span style={infoLabel}>Age</span>
-                <span style={infoValue}>{selectedApplicant.age || "—"}</span>
-              </div>
-              <div style={infoRow}>
-                <span style={infoLabel}>Qualification</span>
-                <span style={infoValue}>{selectedApplicant.qualification || "—"}</span>
-              </div>
-              <div style={{ ...infoRow, marginBottom: 0 }}>
-                <span style={infoLabel}>Institution</span>
-                <span style={infoValue}>{selectedApplicant.institution || "—"}</span>
-              </div>
+            <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
+              <div style={infoRow}><span style={infoLabel}>Email</span><span style={infoValue}>{selectedApplicant.email || "—"}</span></div>
+              <div style={infoRow}><span style={infoLabel}>Phone</span><span style={infoValue}>{selectedApplicant.phone || "—"}</span></div>
+              <div style={infoRow}><span style={infoLabel}>Age</span><span style={infoValue}>{selectedApplicant.age || "—"}</span></div>
+              <div style={infoRow}><span style={infoLabel}>Qualification</span><span style={infoValue}>{selectedApplicant.qualification || "—"}</span></div>
+              <div style={{ ...infoRow, marginBottom: 0 }}><span style={infoLabel}>Institution</span><span style={infoValue}>{selectedApplicant.institution || "—"}</span></div>
             </div>
 
-            {/* Academic Results */}
             <div style={{ marginBottom: 24 }}>
-              <h4
-                style={{
-                  margin: "0 0 12px 0",
-                  fontSize: "0.95rem",
-                  fontWeight: 600,
-                  color: "#334155",
-                }}
-              >
-                📊 Academic Results
-              </h4>
-              <div
-                style={{
-                  background: "#f0f9ff",
-                  border: "1px solid #bae6fd",
-                  borderRadius: 12,
-                  padding: "16px 18px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
+              <h4 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>📊 Academic Results</h4>
+              <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 12, padding: "16px 18px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <div style={{ fontSize: "0.85rem", color: "#0369a1", fontWeight: 500 }}>
-                      Total Grade 12 Points
-                    </div>
-                    <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 2 }}>
-                      Lower is better
-                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "#0369a1", fontWeight: 500 }}>Total Grade 12 Points</div>
+                    <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 2 }}>Lower is better</div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: "1.8rem",
-                      fontWeight: 700,
-                      color:
-                        (grade12Data[selectedApplicant.id] || 0) <= 12
-                          ? "#166534"
-                          : (grade12Data[selectedApplicant.id] || 0) <= 20
-                          ? "#854d0e"
-                          : "#991b1b",
-                    }}
-                  >
+                  <div style={{
+                    fontSize: "1.8rem", fontWeight: 700,
+                    color: (grade12Data[selectedApplicant.id] || 0) <= 12 ? "#166534" : (grade12Data[selectedApplicant.id] || 0) <= 20 ? "#854d0e" : "#991b1b"
+                  }}>
                     {grade12Data[selectedApplicant.id] || 0}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* CV Section */}
             {selectedApplicant.cv_url ? (
               <div style={{ marginBottom: 24 }}>
-                <h4
-                  style={{
-                    margin: "0 0 12px 0",
-                    fontSize: "0.95rem",
-                    fontWeight: 600,
-                    color: "#334155",
-                  }}
-                >
-                  📄 Resume / CV
-                </h4>
+                <h4 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: 600, color: "#334155" }}>📄 Resume / CV</h4>
                 {cvLoading ? (
-                  <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "0.9rem" }}>
-                    Loading CV…
-                  </p>
+                  <p style={{ color: "#64748b", fontStyle: "italic", fontSize: "0.9rem" }}>Loading CV…</p>
                 ) : cvUrl ? (
                   <>
-                    <div style={resumeContainer}>
-                      <iframe src={cvUrl} style={iframeStyle} title="Applicant Resume" />
-                    </div>
-                    <a
-                      href={cvUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={openLink}
-                    >
-                      Open in New Tab ↗
-                    </a>
+                    <div style={resumeContainer}><iframe src={cvUrl} style={iframeStyle} title="Applicant Resume" /></div>
+                    <a href={cvUrl} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
                   </>
                 ) : (
-                  <p style={{ color: "#ef4444", fontStyle: "italic", fontSize: "0.9rem" }}>
-                    Could not load CV.
-                  </p>
+                  <p style={{ color: "#ef4444", fontStyle: "italic", fontSize: "0.9rem" }}>Could not load CV.</p>
                 )}
               </div>
             ) : (
-              <p style={{ color: "#94a3b8", fontStyle: "italic", marginBottom: 24 }}>
-                No CV uploaded.
-              </p>
+              <p style={{ color: "#94a3b8", fontStyle: "italic", marginBottom: 24 }}>No CV uploaded.</p>
             )}
 
-            {/* Action Buttons */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button
-                onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")}
-                style={shortlistBtn}
-              >
-                Shortlist Candidate
-              </button>
-              <button
-                onClick={() => updateStatus(selectedApplicant.id, "Hired")}
-                style={hireBtn}
-              >
-                Hire Candidate
-              </button>
-              <button
-                onClick={() => updateStatus(selectedApplicant.id, "Rejected")}
-                style={rejectBtn}
-              >
-                Reject
-              </button>
+              <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist Candidate</button>
+              <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire Candidate</button>
+              <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={rejectBtn}>Reject</button>
             </div>
           </div>
         </>
       )}
 
-      {/* Toast */}
       {toast.show && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            background: "#0f172a",
-            color: "white",
-            padding: "14px 22px",
-            borderRadius: "12px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            zIndex: 300,
-            maxWidth: "380px",
-          }}
-        >
+        <div style={{ position: "fixed", bottom: "24px", right: "24px", background: "#0f172a", color: "white", padding: "14px 22px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px" }}>
           {toast.message}
         </div>
       )}
 
-      {/* Post New Job Modal */}
       {showJobModal && (
-        <div
-          style={overlayStyle}
-          onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}
-        >
+        <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
           <div style={modalStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 24,
-              }}
-            >
-              <h3 style={{ margin: 0 }}>Post New Job</h3>
-              <button
-                onClick={() => setShowJobModal(false)}
-                style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer" }}
-              >
-                ✕
-              </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700, color: "#0f172a" }}>Post New Job</h3>
+                <p style={{ margin: "6px 0 0", fontSize: "0.9rem", color: "#64748b" }}>Job will be sent for approval before going live</p>
+              </div>
+              <button onClick={() => setShowJobModal(false)} style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#64748b", lineHeight: 1 }}>✕</button>
             </div>
-            <div>
-              <label style={mLabel}>Job Title *</label>
-              <input
-                name="title"
-                style={mInput}
-                value={newJob.title}
-                onChange={handleJobChange}
-                placeholder="e.g. Graduate Trainee - Mechanical Engineering"
-              />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div>
+                <label style={mLabel}>Job Title *</label>
+                <input name="title" style={mInput} value={newJob.title} onChange={handleJobChange} placeholder="e.g. Graduate Trainee - Mechanical Engineering" />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={mLabel}>Location</label>
+                  <input name="location" style={mInput} value={newJob.location} onChange={handleJobChange} placeholder="Lusaka" />
+                </div>
+                <div>
+                  <label style={mLabel}>Department</label>
+                  <select name="department" style={mInput} value={newJob.department} onChange={handleJobChange}>
+                    <option value="Open (Multiple fields)">Open (Multiple fields)</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Accounting & Finance">Accounting & Finance</option>
+                    <option value="Human Resources">Human Resources</option>
+                    <option value="Purchasing & Supply">Purchasing & Supply</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Operations">Operations</option>
+                    <option value="IT">IT</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label style={mLabel}>Job Type</label>
+                  <select name="job_type" style={mInput} value={newJob.job_type} onChange={handleJobChange}>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Graduate Trainee">Graduate Trainee</option>
+                    <option value="Contract">Contract</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={mLabel}>Application Deadline</label>
+                  <input name="deadline" type="date" style={mInput} value={newJob.deadline} onChange={handleJobChange} />
+                </div>
+              </div>
+
+              <div>
+                <label style={mLabel}>Description *</label>
+                <textarea name="description" style={{ ...mInput, minHeight: "130px", resize: "vertical" }} value={newJob.description} onChange={handleJobChange} placeholder="Describe the role, requirements, and what the successful candidate will do..." />
+              </div>
             </div>
-            <div style={{ marginTop: 16 }}>
-              <label style={mLabel}>Location</label>
-              <input
-                name="location"
-                style={mInput}
-                value={newJob.location}
-                onChange={handleJobChange}
-                placeholder="Lusaka"
-              />
+
+            <div style={{ marginTop: 20, padding: "12px 16px", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, fontSize: "0.9rem", color: "#0369a1" }}>
+              After posting, this job will be marked as <strong>Pending Approval</strong> and will only appear on the public Jobs page once approved by the HR Director.
             </div>
-            <div style={{ marginTop: 16 }}>
-              <label style={mLabel}>Description *</label>
-              <textarea
-                name="description"
-                style={{ ...mInput, minHeight: "100px" }}
-                value={newJob.description}
-                onChange={handleJobChange}
-                placeholder="Describe the role..."
-              />
-            </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-              <button onClick={() => setShowJobModal(false)} style={cancelBtn}>
-                Cancel
-              </button>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
+              <button onClick={() => setShowJobModal(false)} style={cancelBtn}>Cancel</button>
               <button onClick={postNewJob} disabled={postingJob} style={postBtn}>
-                {postingJob ? "Posting..." : "Post Job"}
+                {postingJob ? "Submitting..." : "Submit for Approval"}
               </button>
             </div>
           </div>
@@ -855,196 +585,24 @@ export default function Dashboard({ apps, refreshData }) {
   );
 }
 
-// ========== STYLES ==========
-const cardStyle = {
-  background: "white",
-  border: "1px solid #e2e8f0",
-  borderRadius: 16,
-  padding: "20px 20px 16px",
-  cursor: "pointer",
-  transition: "all 0.2s",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-};
-
-const searchInput = {
-  flex: 1,
-  minWidth: 220,
-  padding: "12px 16px",
-  border: "1px solid #cbd5e1",
-  borderRadius: 10,
-  fontSize: "1rem",
-};
-
-const selectStyle = {
-  padding: "12px 16px",
-  border: "1px solid #cbd5e1",
-  borderRadius: 10,
-  fontSize: "1rem",
-  minWidth: 160,
-};
-
-const addBtn = {
-  padding: "10px 20px",
-  background: "#0f172a",
-  color: "white",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const exportBtn = {
-  padding: "10px 20px",
-  background: "white",
-  color: "#0f172a",
-  border: "1px solid #cbd5e1",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const sidebarStyle = {
-  position: "fixed",
-  top: 0,
-  right: 0,
-  width: "420px",
-  maxWidth: "100vw",
-  height: "100vh",
-  background: "white",
-  borderLeft: "1px solid #e2e8f0",
-  padding: "24px 24px 40px",
-  overflowY: "auto",
-  boxShadow: "-8px 0 30px rgba(0,0,0,0.12)",
-  zIndex: 100,
-};
-
-const shortlistBtn = {
-  padding: "12px",
-  background: "#fef3c7",
-  color: "#854d0e",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const hireBtn = {
-  padding: "12px",
-  background: "#dbeafe",
-  color: "#1e40af",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const rejectBtn = {
-  padding: "12px",
-  background: "#fee2e2",
-  color: "#991b1b",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const mLabel = {
-  display: "block",
-  marginBottom: 6,
-  fontWeight: 600,
-  color: "#374151",
-  fontSize: "0.95rem",
-};
-
-const mInput = {
-  width: "100%",
-  padding: "12px 14px",
-  border: "1px solid #cbd5e1",
-  borderRadius: 10,
-  fontSize: "1rem",
-  marginBottom: 4,
-};
-
-const cancelBtn = {
-  flex: 1,
-  padding: "14px",
-  background: "white",
-  border: "1px solid #cbd5e1",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const postBtn = {
-  flex: 1,
-  padding: "14px",
-  background: "#0f172a",
-  color: "white",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const overlayStyle = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(15, 23, 42, 0.6)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 200,
-};
-
-const modalStyle = {
-  background: "white",
-  borderRadius: 20,
-  padding: "32px",
-  width: "100%",
-  maxWidth: "720px",
-  maxHeight: "90vh",
-  overflowY: "auto",
-};
-
-const resumeContainer = {
-  border: "1px solid #e2e8f0",
-  borderRadius: 12,
-  overflow: "hidden",
-  background: "#f8fafc",
-};
-
-const iframeStyle = {
-  width: "100%",
-  height: "320px",
-  border: "none",
-};
-
-const openLink = {
-  display: "inline-block",
-  marginTop: 8,
-  color: "#0ea5e9",
-  textDecoration: "none",
-  fontSize: "0.95rem",
-};
-
-const infoRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  marginBottom: 10,
-  gap: 12,
-};
-
-const infoLabel = {
-  fontSize: "0.8rem",
-  color: "#64748b",
-  fontWeight: 500,
-  minWidth: 90,
-};
-
-const infoValue = {
-  fontSize: "0.9rem",
-  color: "#0f172a",
-  textAlign: "right",
-  wordBreak: "break-word",
-};
+const cardStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: 16, padding: "20px 20px 16px", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" };
+const searchInput = { flex: 1, minWidth: 220, padding: "12px 16px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem" };
+const selectStyle = { padding: "12px 16px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem", minWidth: 160 };
+const addBtn = { padding: "10px 20px", background: "#0f172a", color: "white", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const exportBtn = { padding: "10px 20px", background: "white", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const sidebarStyle = { position: "fixed", top: 0, right: 0, width: "420px", maxWidth: "100vw", height: "100vh", background: "white", borderLeft: "1px solid #e2e8f0", padding: "24px 24px 40px", overflowY: "auto", boxShadow: "-8px 0 30px rgba(0,0,0,0.12)", zIndex: 100 };
+const shortlistBtn = { padding: "12px", background: "#fef3c7", color: "#854d0e", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const hireBtn = { padding: "12px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const rejectBtn = { padding: "12px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const mLabel = { display: "block", marginBottom: 6, fontWeight: 600, color: "#374151", fontSize: "0.95rem" };
+const mInput = { width: "100%", padding: "12px 14px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem", marginBottom: 4 };
+const cancelBtn = { flex: 1, padding: "14px", background: "white", border: "1px solid #cbd5e1", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const postBtn = { flex: 1, padding: "14px", background: "#0f172a", color: "white", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" };
+const overlayStyle = { position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 };
+const modalStyle = { background: "white", borderRadius: 20, padding: "32px", width: "100%", maxWidth: "720px", maxHeight: "90vh", overflowY: "auto" };
+const resumeContainer = { border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#f8fafc" };
+const iframeStyle = { width: "100%", height: "320px", border: "none" };
+const openLink = { display: "inline-block", marginTop: 8, color: "#0ea5e9", textDecoration: "none", fontSize: "0.95rem" };
+const infoRow = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 12 };
+const infoLabel = { fontSize: "0.8rem", color: "#64748b", fontWeight: 500, minWidth: 90 };
+const infoValue = { fontSize: "0.9rem", color: "#0f172a", textAlign: "right", wordBreak: "break-word" };
