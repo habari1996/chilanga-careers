@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function Dashboard({ apps, refreshData }) {
+export default function Dashboard({ apps, refreshData, userEmail }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [qualificationFilter, setQualificationFilter] = useState("All");
@@ -30,6 +30,18 @@ export default function Dashboard({ apps, refreshData }) {
   // ===== Job Approval =====
   const [pendingJobs, setPendingJobs] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
+
+  // Only these people can Approve / Reject job posts
+  const JOB_APPROVERS = [
+    "wamusheke-yvonne.simenda@huaxin.com",
+    "nduwa.mtonga@huaxin.com",
+    "mulenga.mutale@huaxin.com",
+    "kudzanai.siame@huaxincem.com", // for testing
+  ];
+
+  const canApproveJobs = JOB_APPROVERS.some(
+    (email) => email.toLowerCase() === (userEmail || "").toLowerCase()
+  );
 
   const showToast = (message) => {
     setToast({ show: true, message });
@@ -267,6 +279,11 @@ export default function Dashboard({ apps, refreshData }) {
   };
 
   const approveJob = async (jobId) => {
+    if (!canApproveJobs) {
+      alert("You do not have permission to approve jobs.");
+      return;
+    }
+
     const { error } = await supabase
       .from("jobs")
       .update({
@@ -285,6 +302,11 @@ export default function Dashboard({ apps, refreshData }) {
   };
 
   const rejectJob = async (jobId) => {
+    if (!canApproveJobs) {
+      alert("You do not have permission to reject jobs.");
+      return;
+    }
+
     const reason = prompt("Optional rejection reason:");
     const { error } = await supabase
       .from("jobs")
@@ -464,38 +486,52 @@ export default function Dashboard({ apps, refreshData }) {
                     </p>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 120 }}>
-                    <button
-                      onClick={() => approveJob(job.id)}
-                      style={{
-                        padding: "10px 16px",
-                        background: "#16a34a",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 10,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        fontSize: "0.9rem"
-                      }}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => rejectJob(job.id)}
-                      style={{
-                        padding: "10px 16px",
-                        background: "#fee2e2",
-                        color: "#991b1b",
-                        border: "none",
-                        borderRadius: 10,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        fontSize: "0.9rem"
-                      }}
-                    >
-                      Reject
-                    </button>
-                  </div>
+                  {canApproveJobs ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 120 }}>
+                      <button
+                        onClick={() => approveJob(job.id)}
+                        style={{
+                          padding: "10px 16px",
+                          background: "#16a34a",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 10,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontSize: "0.9rem"
+                        }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => rejectJob(job.id)}
+                        style={{
+                          padding: "10px 16px",
+                          background: "#fee2e2",
+                          color: "#991b1b",
+                          border: "none",
+                          borderRadius: 10,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontSize: "0.9rem"
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: "10px 14px",
+                      background: "#f1f5f9",
+                      borderRadius: 10,
+                      fontSize: "0.85rem",
+                      color: "#64748b",
+                      textAlign: "center",
+                      minWidth: 130
+                    }}>
+                      Waiting for<br />HR Director approval
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
