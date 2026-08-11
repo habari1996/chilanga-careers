@@ -6,6 +6,7 @@ import Dashboard from "./components/Dashboard";
 import JobList from "./components/JobList";
 import Confirmation from "./components/Confirmation";
 import TrackApplication from "./components/TrackApplication";
+import { getPermissions } from "./roles";
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -14,12 +15,8 @@ export default function App() {
   const [jobs, setJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState(null);
 
-  const isHR = session?.user?.email && (
-    session.user.email.toLowerCase().includes("@huaxin.com") ||
-    session.user.email.toLowerCase().includes("@huaxincem.com") ||
-    session.user.email.toLowerCase().includes("@chilangacement.co.zm") ||
-    session.user.email === "kudzanai.siame@huaxincem.com"
-  );
+  const permissions = getPermissions(session?.user?.email);
+  const isHR = !!permissions?.canViewDashboard;
 
   useEffect(() => {
     const initialize = async () => {
@@ -43,7 +40,6 @@ export default function App() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    // Fetch applications in pages
     const pageSize = 1000;
     let allApps = [];
     for (let from = 0; ; from += pageSize) {
@@ -73,12 +69,10 @@ export default function App() {
     try {
       const { supabase } = await import("./supabaseClient");
       const { error } = await supabase.auth.signOut();
-
       if (error) throw error;
       setSession(null);
       setSelectedJobId(null);
       setTab("home");
-
       alert("✅ You have been logged out successfully.");
     } catch (err) {
       console.error("Logout error:", err);
@@ -140,14 +134,6 @@ export default function App() {
                     transition: "all 0.3s ease",
                     boxShadow: "0 8px 25px rgba(15, 23, 42, 0.15)"
                   }}
-                  onMouseOver={(e) => {
-                    e.target.style.transform = "translateY(-3px)";
-                    e.target.style.boxShadow = "0 12px 30px rgba(15, 23, 42, 0.25)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 8px 25px rgba(15, 23, 42, 0.15)";
-                  }}
                 >
                   Browse Open Positions
                 </button>
@@ -165,20 +151,11 @@ export default function App() {
                     transition: "all 0.3s ease",
                     boxShadow: "0 8px 25px rgba(245, 158, 11, 0.25)"
                   }}
-                  onMouseOver={(e) => {
-                    e.target.style.transform = "translateY(-3px)";
-                    e.target.style.boxShadow = "0 12px 30px rgba(245, 158, 11, 0.35)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 8px 25px rgba(245, 158, 11, 0.25)";
-                  }}
                 >
                   Start Your Application
                 </button>
               </div>
 
-              {/* Professional Stats Bar */}
               <div style={{
                 display: "flex",
                 justifyContent: "center",
@@ -226,6 +203,7 @@ export default function App() {
             apps={apps}
             refreshData={loadData}
             userEmail={session?.user?.email}
+            permissions={permissions}
           />
         )}
 
@@ -233,7 +211,9 @@ export default function App() {
           <div style={{ textAlign: "center", padding: "100px 20px" }}>
             <h2>🔒 Restricted Access</h2>
             <p>This dashboard is only for authorized HR staff.</p>
-            <button onClick={() => handleSetTab("auth")} style={primaryBtn}>Go to HR Login</button>
+            <button onClick={() => handleSetTab("auth")} style={primaryBtn}>
+              Go to HR Login
+            </button>
           </div>
         )}
       </main>
