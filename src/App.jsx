@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-
 import Navbar from "./components/Navbar";
 import ApplyForm from "./components/ApplyForm";
 import AuthForm from "./components/AuthForm";
@@ -27,26 +26,24 @@ export default function App() {
       const { supabase } = await import("./supabaseClient");
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
-
       supabase.auth.onAuthStateChange((event, newSession) => {
         setSession(newSession);
         if (event === "SIGNED_IN") setTab("dashboard");
         if (event === "SIGNED_OUT") setTab("home");
       });
     };
-
     initialize();
     loadData();
   }, []);
 
   async function loadData() {
     const { supabase } = await import("./supabaseClient");
-    const { data: jobsData } = await supabase.from("jobs").select("*").order("id");
+    const { data: jobsData } = await supabase
+      .from("jobs")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    // Fetch applications in pages. PostgREST caps a single response at
-    // ~1000 rows (Supabase default max-rows), so a plain .select() would
-    // silently drop everything past the newest 1000. Page through with
-    // .range() until a short page comes back.
+    // Fetch applications in pages
     const pageSize = 1000;
     let allApps = [];
     for (let from = 0; ; from += pageSize) {
@@ -59,7 +56,6 @@ export default function App() {
       allApps = allApps.concat(data || []);
       if (!data || data.length < pageSize) break;
     }
-
     setJobs(jobsData || []);
     setApps(allApps);
   }
@@ -77,13 +73,12 @@ export default function App() {
     try {
       const { supabase } = await import("./supabaseClient");
       const { error } = await supabase.auth.signOut();
-      
-      if (error) throw error;
 
+      if (error) throw error;
       setSession(null);
       setSelectedJobId(null);
       setTab("home");
-      
+
       alert("✅ You have been logged out successfully.");
     } catch (err) {
       console.error("Logout error:", err);
@@ -100,7 +95,6 @@ export default function App() {
         isHR={isHR}
         onSignOut={handleSignOut}
       />
-
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
         {tab === "home" && (
           <div style={{ textAlign: "center", padding: "100px 20px 80px" }}>
@@ -115,7 +109,6 @@ export default function App() {
                 Chilanga Cement<br />
                 Job Application Portal
               </h1>
-
               <p style={{
                 fontSize: "1.35rem",
                 color: "#475569",
@@ -123,18 +116,17 @@ export default function App() {
                 margin: "0 auto 50px",
                 lineHeight: 1.6
               }}>
-                Join one of Zambia’s most respected and established companies. 
+                Join one of Zambia’s most respected and established companies.
                 At Chilanga Cement, we build more than infrastructure — we build careers and futures.
               </p>
-
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "center", 
-                gap: "20px", 
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "20px",
                 flexWrap: "wrap",
                 marginBottom: "70px"
               }}>
-                <button 
+                <button
                   onClick={() => handleSetTab("jobs")}
                   style={{
                     padding: "18px 48px",
@@ -148,19 +140,18 @@ export default function App() {
                     transition: "all 0.3s ease",
                     boxShadow: "0 8px 25px rgba(15, 23, 42, 0.15)"
                   }}
-                  onMouseOver={(e) => { 
-                    e.target.style.transform = "translateY(-3px)"; 
-                    e.target.style.boxShadow = "0 12px 30px rgba(15, 23, 42, 0.25)"; 
+                  onMouseOver={(e) => {
+                    e.target.style.transform = "translateY(-3px)";
+                    e.target.style.boxShadow = "0 12px 30px rgba(15, 23, 42, 0.25)";
                   }}
-                  onMouseOut={(e) => { 
-                    e.target.style.transform = "translateY(0)"; 
-                    e.target.style.boxShadow = "0 8px 25px rgba(15, 23, 42, 0.15)"; 
+                  onMouseOut={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 8px 25px rgba(15, 23, 42, 0.15)";
                   }}
                 >
                   Browse Open Positions
                 </button>
-
-                <button 
+                <button
                   onClick={() => handleSetTab("apply")}
                   style={{
                     padding: "18px 48px",
@@ -174,13 +165,13 @@ export default function App() {
                     transition: "all 0.3s ease",
                     boxShadow: "0 8px 25px rgba(245, 158, 11, 0.25)"
                   }}
-                  onMouseOver={(e) => { 
-                    e.target.style.transform = "translateY(-3px)"; 
-                    e.target.style.boxShadow = "0 12px 30px rgba(245, 158, 11, 0.35)"; 
+                  onMouseOver={(e) => {
+                    e.target.style.transform = "translateY(-3px)";
+                    e.target.style.boxShadow = "0 12px 30px rgba(245, 158, 11, 0.35)";
                   }}
-                  onMouseOut={(e) => { 
-                    e.target.style.transform = "translateY(0)"; 
-                    e.target.style.boxShadow = "0 8px 25px rgba(245, 158, 11, 0.25)"; 
+                  onMouseOut={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 8px 25px rgba(245, 158, 11, 0.25)";
                   }}
                 >
                   Start Your Application
@@ -229,7 +220,15 @@ export default function App() {
         {tab === "confirmation" && <Confirmation onBack={() => setTab("home")} />}
         {tab === "auth" && <AuthForm setTab={handleSetTab} />}
         {tab === "track" && <TrackApplication />}
-        {tab === "dashboard" && isHR && <Dashboard apps={apps} refreshData={loadData} />}
+
+        {tab === "dashboard" && isHR && (
+          <Dashboard
+            apps={apps}
+            refreshData={loadData}
+            userEmail={session?.user?.email}
+          />
+        )}
+
         {tab === "dashboard" && !isHR && (
           <div style={{ textAlign: "center", padding: "100px 20px" }}>
             <h2>🔒 Restricted Access</h2>
