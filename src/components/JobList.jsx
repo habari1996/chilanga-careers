@@ -3,7 +3,12 @@ import React, { useState } from "react";
 export default function JobList({ jobs, setTab }) {
   const [selectedJob, setSelectedJob] = useState(null);
 
-  if (!jobs || jobs.length === 0) {
+  // Only show Published jobs on the public page
+  const publishedJobs = (jobs || []).filter(
+    (job) => job.status === "Published" || !job.status
+  );
+
+  if (!publishedJobs || publishedJobs.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "100px 20px" }}>
         <h2 style={{ fontSize: "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
@@ -39,7 +44,7 @@ export default function JobList({ jobs, setTab }) {
           gap: "28px",
         }}
       >
-        {jobs.map((job) => (
+        {publishedJobs.map((job) => (
           <div key={job.id} style={jobCard}>
             <div style={jobHeader}>
               <h3 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 600, color: "#0f172a" }}>
@@ -101,7 +106,6 @@ export default function JobList({ jobs, setTab }) {
       {/* ========== PROFESSIONAL DETAILS MODAL ========== */}
       {selectedJob && (
         <>
-          {/* Overlay */}
           <div
             onClick={() => setSelectedJob(null)}
             style={{
@@ -113,10 +117,8 @@ export default function JobList({ jobs, setTab }) {
             }}
           />
 
-          {/* Modal */}
           <div style={modalContainer}>
             <div style={modalContent}>
-              {/* Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "#0f172a" }}>
@@ -145,7 +147,6 @@ export default function JobList({ jobs, setTab }) {
                 </button>
               </div>
 
-              {/* Meta */}
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
                 <p style={{ margin: "0 0 8px", color: "#475569" }}>
                   <strong>Department:</strong> {selectedJob.department || "Open (Multiple fields)"}
@@ -172,7 +173,6 @@ export default function JobList({ jobs, setTab }) {
                 )}
               </div>
 
-              {/* Full Description */}
               <div style={{ marginBottom: 32 }}>
                 <h4 style={{ margin: "0 0 12px", fontSize: "1.05rem", color: "#0f172a" }}>
                   About the Role
@@ -182,7 +182,6 @@ export default function JobList({ jobs, setTab }) {
                 </p>
               </div>
 
-              {/* Actions */}
               <div style={{ display: "flex", gap: 12 }}>
                 <button
                   onClick={() => {
