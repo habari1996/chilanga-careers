@@ -27,11 +27,16 @@ export default function Dashboard({ apps, refreshData }) {
   const [cvUrl, setCvUrl] = useState(null);
   const [cvLoading, setCvLoading] = useState(false);
 
+  // ===== Job Approval =====
+  const [pendingJobs, setPendingJobs] = useState([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+
   const showToast = (message) => {
     setToast({ show: true, message });
     setTimeout(() => setToast({ show: false, message: "" }), 3500);
   };
 
+  // Fetch Grade 12 points
   useEffect(() => {
     const fetchGrade12Results = async () => {
       if (!apps.length) return;
@@ -57,6 +62,23 @@ export default function Dashboard({ apps, refreshData }) {
     };
     fetchGrade12Results();
   }, [apps]);
+
+  // Fetch pending jobs for approval
+  const fetchPendingJobs = async () => {
+    setLoadingPending(true);
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("status", "Pending Approval")
+      .order("created_at", { ascending: false });
+
+    if (!error) setPendingJobs(data || []);
+    setLoadingPending(false);
+  };
+
+  useEffect(() => {
+    fetchPendingJobs();
+  }, []);
 
   const cvPathFromStored = (stored) => {
     if (!stored) return null;
@@ -235,11 +257,48 @@ export default function Dashboard({ apps, refreshData }) {
         description: "",
         deadline: ""
       });
+      fetchPendingJobs();
       refreshData();
     } catch (err) {
       alert("Failed to post job: " + err.message);
     } finally {
       setPostingJob(false);
+    }
+  };
+
+  const approveJob = async (jobId) => {
+    const { error } = await supabase
+      .from("jobs")
+      .update({
+        status: "Published",
+        approved_at: new Date().toISOString()
+      })
+      .eq("id", jobId);
+
+    if (!error) {
+      showToast("Job approved and published successfully!");
+      fetchPendingJobs();
+      refreshData();
+    } else {
+      alert("Failed to approve job: " + error.message);
+    }
+  };
+
+  const rejectJob = async (jobId) => {
+    const reason = prompt("Optional rejection reason:");
+    const { error } = await supabase
+      .from("jobs")
+      .update({
+        status: "Rejected",
+        rejection_reason: reason || null
+      })
+      .eq("id", jobId);
+
+    if (!error) {
+      showToast("Job rejected.");
+      fetchPendingJobs();
+    } else {
+      alert("Failed to reject job: " + error.message);
     }
   };
 
@@ -307,6 +366,7 @@ export default function Dashboard({ apps, refreshData }) {
           transition: "margin-right 0.25s ease",
         }}
       >
+        {/* Header */}
         <div
           style={{
             display: "flex",
@@ -326,6 +386,7 @@ export default function Dashboard({ apps, refreshData }) {
           </div>
         </div>
 
+        {/* Summary Cards */}
         <div
           style={{
             display: "grid",
@@ -352,6 +413,96 @@ export default function Dashboard({ apps, refreshData }) {
           </div>
         </div>
 
+        {/* ========== PENDING JOB APPROVALS ========== */}
+        {pendingJobs.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0f172a" }}>
+                Pending Job Approvals
+                <span style={{
+                  marginLeft: 10,
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  fontSize: "0.8rem",
+                  padding: "3px 10px",
+                  borderRadius: 9999,
+                  fontWeight: 600
+                }}>
+                  {pendingJobs.length}
+                </span>
+              </h3>
+            </div>
+
+            <div style={{ display: "grid", gap: 16 }}>
+              {pendingJobs.map((job) => (
+                <div key={job.id} style={{
+                  background: "white",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 14,
+                  padding: "20px 24px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: 20
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: "0 0 8px 0", fontSize: "1.1rem", fontWeight: 600, color: "#0f172a" }}>
+                      {job.title}
+                    </h4>
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 8, fontSize: "0.9rem", color: "#64748b" }}>
+                      <span>📍 {job.location || "Zambia"}</span>
+                      <span>🏢 {job.department || "Open"}</span>
+                      <span>💼 {job.job_type || "Full-time"}</span>
+                      {job.deadline && (
+                        <span>📅 Deadline: {new Date(job.deadline).toLocaleDateString("en-GB")}</span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, color: "#475569", fontSize: "0.95rem", lineHeight: 1.5 }}>
+                      {job.description
+                        ? (job.description.length > 160 ? job.description.substring(0, 160) + "..." : job.description)
+                        : "No description"}
+                    </p>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 120 }}>
+                    <button
+                      onClick={() => approveJob(job.id)}
+                      style={{
+                        padding: "10px 16px",
+                        background: "#16a34a",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 10,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontSize: "0.9rem"
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => rejectJob(job.id)}
+                      style={{
+                        padding: "10px 16px",
+                        background: "#fee2e2",
+                        color: "#991b1b",
+                        border: "none",
+                        borderRadius: 10,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontSize: "0.9rem"
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Filters */}
         <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
           <input
             placeholder="Search by name or email..."
@@ -388,6 +539,7 @@ export default function Dashboard({ apps, refreshData }) {
           </select>
         </div>
 
+        {/* Application Cards */}
         {paginatedApps.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}>
             <p style={{ fontSize: 18 }}>No applications match your filters.</p>
@@ -433,6 +585,7 @@ export default function Dashboard({ apps, refreshData }) {
         )}
       </div>
 
+      {/* ========== SIDEBAR ========== */}
       {selectedApplicant && (
         <>
           <div
@@ -503,12 +656,14 @@ export default function Dashboard({ apps, refreshData }) {
         </>
       )}
 
+      {/* Toast */}
       {toast.show && (
         <div style={{ position: "fixed", bottom: "24px", right: "24px", background: "#0f172a", color: "white", padding: "14px 22px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px" }}>
           {toast.message}
         </div>
       )}
 
+      {/* ========== POST NEW JOB MODAL ========== */}
       {showJobModal && (
         <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
           <div style={modalStyle}>
@@ -585,6 +740,7 @@ export default function Dashboard({ apps, refreshData }) {
   );
 }
 
+// ========== STYLES ==========
 const cardStyle = { background: "white", border: "1px solid #e2e8f0", borderRadius: 16, padding: "20px 20px 16px", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" };
 const searchInput = { flex: 1, minWidth: 220, padding: "12px 16px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem" };
 const selectStyle = { padding: "12px 16px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "1rem", minWidth: 160 };
