@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function Dashboard({ apps, refreshData, userEmail }) {
+export default function Dashboard({ apps, refreshData, userEmail, permissions }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [qualificationFilter, setQualificationFilter] = useState("All");
@@ -26,22 +26,13 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
   const [grade12Data, setGrade12Data] = useState({});
   const [cvUrl, setCvUrl] = useState(null);
   const [cvLoading, setCvLoading] = useState(false);
-
-  // ===== Job Approval =====
   const [pendingJobs, setPendingJobs] = useState([]);
-  const [loadingPending, setLoadingPending] = useState(false);
 
-  // Only these people can Approve / Reject job posts
-  const JOB_APPROVERS = [
-    "wamusheke-yvonne.simenda@huaxin.com",
-    "nduwa.mtonga@huaxin.com",
-    "mulenga.mutale@huaxin.com",
-    "kudzanai.siame@huaxincem.com", // for testing
-  ];
-
-  const canApproveJobs = JOB_APPROVERS.some(
-    (email) => email.toLowerCase() === (userEmail || "").toLowerCase()
-  );
+  // ===== Role-based permissions =====
+  const canApproveJobs = permissions?.canApproveJobs === true;
+  const canPostJobs = permissions?.canPostJobs === true;
+  const canExportCSV = permissions?.canExportCSV !== false;
+  const canUpdateStatus = permissions?.canUpdateApplicationStatus !== false;
 
   const showToast = (message) => {
     setToast({ show: true, message });
@@ -75,17 +66,14 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
     fetchGrade12Results();
   }, [apps]);
 
-  // Fetch pending jobs for approval
+  // Fetch pending jobs
   const fetchPendingJobs = async () => {
-    setLoadingPending(true);
     const { data, error } = await supabase
       .from("jobs")
       .select("*")
       .eq("status", "Pending Approval")
       .order("created_at", { ascending: false });
-
     if (!error) setPendingJobs(data || []);
-    setLoadingPending(false);
   };
 
   useEffect(() => {
@@ -215,13 +203,16 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
   ]);
 
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
   const totalApps = apps.length;
   const newApps = apps.filter((a) => a.status === "New").length;
   const shortlistedApps = apps.filter((a) => a.status === "Shortlisted").length;
   const hiredApps = apps.filter((a) => a.status === "Hired").length;
 
   const updateStatus = async (id, newStatus) => {
+    if (!canUpdateStatus) {
+      alert("You do not have permission to update application status.");
+      return;
+    }
     const { error } = await supabase
       .from("applications")
       .update({ status: newStatus })
@@ -231,7 +222,7 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
       if (selectedApplicant?.id === id) {
         setSelectedApplicant({ ...selectedApplicant, status: newStatus });
       }
-      showToast(`Status updated to ${newStatus}. Email notification sent to candidate.`);
+      showToast(`Status updated to ${newStatus}.`);
     }
   };
 
@@ -240,6 +231,10 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
   };
 
   const postNewJob = async () => {
+    if (!canPostJobs) {
+      alert("You do not have permission to post jobs.");
+      return;
+    }
     if (!newJob.title.trim() || !newJob.description.trim()) {
       alert("Job Title and Description are required!");
       return;
@@ -283,7 +278,6 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
       alert("You do not have permission to approve jobs.");
       return;
     }
-
     const { error } = await supabase
       .from("jobs")
       .update({
@@ -306,7 +300,6 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
       alert("You do not have permission to reject jobs.");
       return;
     }
-
     const reason = prompt("Optional rejection reason:");
     const { error } = await supabase
       .from("jobs")
@@ -325,35 +318,27 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
   };
 
   const exportCSV = () => {
+    if (!canExportCSV) {
+      alert("You do not have permission to export.");
+      return;
+    }
     if (!filteredApps.length) {
       alert("No applications to export.");
       return;
     }
     const cols = [
-      "full_name",
-      "email",
-      "phone",
-      "age",
-      "gender",
-      "qualification",
-      "institution",
-      "field_of_study",
-      "total_points",
-      "status",
-      "created_at",
+      "full_name", "email", "phone", "age", "gender",
+      "qualification", "institution", "field_of_study",
+      "total_points", "status", "created_at"
     ];
     const header = cols.join(",");
     const rows = filteredApps.map((app) => {
       const points = grade12Data[app.id] || 0;
-      return cols
-        .map((col) => {
-          let val = "";
-          if (col === "total_points") val = points;
-          else val = app[col] ?? "";
-          if (typeof val === "string") val = val.replace(/"/g, '""');
-          return `"${val}"`;
-        })
-        .join(",");
+      return cols.map((col) => {
+        let val = col === "total_points" ? points : (app[col] ?? "");
+        if (typeof val === "string") val = val.replace(/"/g, '""');
+        return `"${val}"`;
+      }).join(",");
     });
     const csvContent = [header, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -389,34 +374,24 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>Recruiter Dashboard</h2>
           <div style={{ display: "flex", gap: 12 }}>
-            <button onClick={() => setShowJobModal(true)} style={addBtn}>
-              + Post New Job
-            </button>
-            <button onClick={exportCSV} style={exportBtn}>
-              Export CSV
-            </button>
+            {canPostJobs && (
+              <button onClick={() => setShowJobModal(true)} style={addBtn}>
+                + Post New Job
+              </button>
+            )}
+            {canExportCSV && (
+              <button onClick={exportCSV} style={exportBtn}>
+                Export CSV
+              </button>
+            )}
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 24 }}>
           <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px" }}>
             <div style={{ fontSize: "0.9rem", color: "#64748b" }}>Total Applications</div>
             <div style={{ fontSize: "2rem", fontWeight: 700, color: "#0f172a" }}>{totalApps}</div>
@@ -438,22 +413,20 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
         {/* ========== PENDING JOB APPROVALS ========== */}
         {pendingJobs.length > 0 && (
           <div style={{ marginBottom: 32 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0f172a" }}>
-                Pending Job Approvals
-                <span style={{
-                  marginLeft: 10,
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  fontSize: "0.8rem",
-                  padding: "3px 10px",
-                  borderRadius: 9999,
-                  fontWeight: 600
-                }}>
-                  {pendingJobs.length}
-                </span>
-              </h3>
-            </div>
+            <h3 style={{ margin: "0 0 16px 0", fontSize: "1.2rem", fontWeight: 700, color: "#0f172a" }}>
+              Pending Job Approvals
+              <span style={{
+                marginLeft: 10,
+                background: "#fef3c7",
+                color: "#92400e",
+                fontSize: "0.8rem",
+                padding: "3px 10px",
+                borderRadius: 9999,
+                fontWeight: 600
+              }}>
+                {pendingJobs.length}
+              </span>
+            </h3>
 
             <div style={{ display: "grid", gap: 16 }}>
               {pendingJobs.map((job) => (
@@ -683,24 +656,31 @@ export default function Dashboard({ apps, refreshData, userEmail }) {
               <p style={{ color: "#94a3b8", fontStyle: "italic", marginBottom: 24 }}>No CV uploaded.</p>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist Candidate</button>
-              <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire Candidate</button>
-              <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={rejectBtn}>Reject</button>
-            </div>
+            {canUpdateStatus && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <button onClick={() => updateStatus(selectedApplicant.id, "Shortlisted")} style={shortlistBtn}>Shortlist Candidate</button>
+                <button onClick={() => updateStatus(selectedApplicant.id, "Hired")} style={hireBtn}>Hire Candidate</button>
+                <button onClick={() => updateStatus(selectedApplicant.id, "Rejected")} style={rejectBtn}>Reject</button>
+              </div>
+            )}
           </div>
         </>
       )}
 
       {/* Toast */}
       {toast.show && (
-        <div style={{ position: "fixed", bottom: "24px", right: "24px", background: "#0f172a", color: "white", padding: "14px 22px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px" }}>
+        <div style={{
+          position: "fixed", bottom: "24px", right: "24px",
+          background: "#0f172a", color: "white",
+          padding: "14px 22px", borderRadius: "12px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px"
+        }}>
           {toast.message}
         </div>
       )}
 
       {/* ========== POST NEW JOB MODAL ========== */}
-      {showJobModal && (
+      {showJobModal && canPostJobs && (
         <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && setShowJobModal(false)}>
           <div style={modalStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
