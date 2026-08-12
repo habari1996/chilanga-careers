@@ -8,6 +8,11 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [minPoints, setMinPoints] = useState("");
+  const [genderFilter, setGenderFilter] = useState("All");
+  const [institutionSearch, setInstitutionSearch] = useState("");
+  const [fieldSearch, setFieldSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [sortMode, setSortMode] = useState("newest");
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [page, setPage] = useState(1);
@@ -133,7 +138,8 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
 
   const filteredApps = useMemo(() => {
     let result = apps.filter((app) => {
-      const matchesSearch = !search || app.full_name?.toLowerCase().includes(search.toLowerCase()) || app.email?.toLowerCase().includes(search.toLowerCase());
+      const q = search.trim().toLowerCase();
+      const matchesSearch = !q || app.full_name?.toLowerCase().includes(q) || app.email?.toLowerCase().includes(q) || app.phone?.toLowerCase().includes(q) || app.institution?.toLowerCase().includes(q);
       const matchesStatus = statusFilter === "All" || app.status === statusFilter;
       const matchesQualification = qualificationFilter === "All" || (app.qualification && app.qualification.toLowerCase().includes(qualificationFilter.toLowerCase()));
       const age = parseInt(app.age);
@@ -141,14 +147,28 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       const matchesAgeMax = !ageMax || (age && age <= parseInt(ageMax));
       const appPoints = grade12Data[app.id] || 0;
       const matchesMinPoints = !minPoints || appPoints >= parseInt(minPoints);
-      return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax && matchesMinPoints;
+      const matchesGender = genderFilter === "All" || (app.gender || "").toLowerCase() === genderFilter.toLowerCase();
+      const instQ = institutionSearch.trim().toLowerCase();
+      const matchesInstitution = !instQ || (app.institution || "").toLowerCase().includes(instQ);
+      const fieldQ = fieldSearch.trim().toLowerCase();
+      const matchesField = !fieldQ || (app.field_of_study || "").toLowerCase().includes(fieldQ);
+      let matchesDate = true;
+      if (dateFrom || dateTo) {
+        const created = app.created_at ? new Date(app.created_at) : null;
+        if (!created) matchesDate = false;
+        else {
+          if (dateFrom) { const from = new Date(dateFrom); from.setHours(0, 0, 0, 0); if (created < from) matchesDate = false; }
+          if (dateTo) { const to = new Date(dateTo); to.setHours(23, 59, 59, 999); if (created > to) matchesDate = false; }
+        }
+      }
+      return matchesSearch && matchesStatus && matchesQualification && matchesAgeMin && matchesAgeMax && matchesMinPoints && matchesGender && matchesInstitution && matchesField && matchesDate;
     });
     if (sortMode === "bestMatch") result.sort((a, b) => getBestMatchScore(b) - getBestMatchScore(a));
     else if (sortMode === "points") result.sort((a, b) => (grade12Data[a.id] || 0) - (grade12Data[b.id] || 0));
     else if (sortMode === "name") result.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
     else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     return result;
-  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax, minPoints, sortMode, grade12Data]);
+  }, [apps, search, statusFilter, qualificationFilter, ageMin, ageMax, minPoints, genderFilter, institutionSearch, fieldSearch, dateFrom, dateTo, sortMode, grade12Data]);
 
   const paginatedApps = filteredApps.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalApps = apps.length;
@@ -166,25 +186,25 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   };
 
   const toggleSelectAllPage = () => {
-    if (allPageSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
-    } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
-    }
+    if (allPageSelected) setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    else setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
   };
 
   const clearSelection = () => setSelectedIds([]);
+
+  const hasActiveFilters = !!(search || statusFilter !== "All" || qualificationFilter !== "All" || ageMin || ageMax || minPoints || genderFilter !== "All" || institutionSearch || fieldSearch || dateFrom || dateTo);
+
+  const clearFilters = () => {
+    setSearch(""); setStatusFilter("All"); setQualificationFilter("All"); setAgeMin(""); setAgeMax(""); setMinPoints(""); setGenderFilter("All"); setInstitutionSearch(""); setFieldSearch(""); setDateFrom(""); setDateTo(""); setSortMode("newest"); setPage(1);
+  };
 
   const doBulkUpdateStatus = async (ids, newStatus) => {
     if (!canUpdateStatus) { alert("You do not have permission to update application status."); return; }
     if (!ids.length) return;
     const { error } = await supabase.from("applications").update({ status: newStatus }).in("id", ids);
     if (error) throw new Error(error.message);
-    clearSelection();
-    refreshData();
-    if (selectedApplicant && ids.includes(selectedApplicant.id)) {
-      setSelectedApplicant({ ...selectedApplicant, status: newStatus });
-    }
+    clearSelection(); refreshData();
+    if (selectedApplicant && ids.includes(selectedApplicant.id)) setSelectedApplicant({ ...selectedApplicant, status: newStatus });
     showToast(`${ids.length} application${ids.length > 1 ? "s" : ""} marked as ${newStatus}.`);
   };
 
@@ -194,9 +214,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     const isReject = newStatus === "Rejected";
     openConfirm({
       title: isReject ? `Reject ${count} candidate${count > 1 ? "s" : ""}?` : `Shortlist ${count} candidate${count > 1 ? "s" : ""}?`,
-      message: isReject
-        ? `This will mark ${count} selected application${count > 1 ? "s" : ""} as Rejected.`
-        : `This will mark ${count} selected application${count > 1 ? "s" : ""} as Shortlisted.`,
+      message: isReject ? `This will mark ${count} selected application${count > 1 ? "s" : ""} as Rejected.` : `This will mark ${count} selected application${count > 1 ? "s" : ""} as Shortlisted.`,
       confirmLabel: isReject ? "Yes, Reject All" : "Yes, Shortlist All",
       danger: isReject,
       onConfirm: async () => doBulkUpdateStatus(selectedIds, newStatus),
@@ -335,17 +353,40 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
             </div>
           </div>
         )}
-        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <input placeholder="Search by name or email..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ ...searchInput, flex: 1, minWidth: 200 }} />
-          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}><option value="All">All Status</option><option value="New">New</option><option value="Shortlisted">Shortlisted</option><option value="Hired">Hired</option><option value="Rejected">Rejected</option></select>
-          <select value={qualificationFilter} onChange={(e) => { setQualificationFilter(e.target.value); setPage(1); }} style={selectStyle}>{qualificationsList.map((q) => <option key={q} value={q}>{q}</option>)}</select>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="number" placeholder="Min Age" value={ageMin} onChange={(e) => { setAgeMin(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
-            <span style={{ color: "#64748b" }}>-</span>
-            <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => { setAgeMax(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontWeight: 600, color: "#0f172a", fontSize: "0.95rem" }}>Candidate filters</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: "0.9rem", color: "#64748b" }}>{filteredApps.length} result{filteredApps.length === 1 ? "" : "s"}</span>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} style={{ padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: "0.85rem", color: "#334155" }}>Clear filters</button>
+              )}
+            </div>
           </div>
-          <input type="number" placeholder="Min Total Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }} style={{ width: 140, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
-          <select value={sortMode} onChange={(e) => { setSortMode(e.target.value); setPage(1); }} style={selectStyle}><option value="newest">Newest First</option><option value="bestMatch">Best Match</option><option value="points">Best Results (Lowest Points)</option><option value="name">Name A-Z</option></select>
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <input placeholder="Search name, email, phone, institution..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ ...searchInput, flex: 1, minWidth: 220 }} />
+            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={selectStyle}><option value="All">All Status</option><option value="New">New</option><option value="Shortlisted">Shortlisted</option><option value="Hired">Hired</option><option value="Rejected">Rejected</option></select>
+            <select value={qualificationFilter} onChange={(e) => { setQualificationFilter(e.target.value); setPage(1); }} style={selectStyle}>{qualificationsList.map((q) => <option key={q} value={q}>{q}</option>)}</select>
+            <select value={genderFilter} onChange={(e) => { setGenderFilter(e.target.value); setPage(1); }} style={selectStyle}><option value="All">All Genders</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>
+            <select value={sortMode} onChange={(e) => { setSortMode(e.target.value); setPage(1); }} style={selectStyle}><option value="newest">Newest First</option><option value="bestMatch">Best Match</option><option value="points">Best Results (Lowest Points)</option><option value="name">Name A-Z</option></select>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <input placeholder="Institution..." value={institutionSearch} onChange={(e) => { setInstitutionSearch(e.target.value); setPage(1); }} style={{ width: 160, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            <input placeholder="Field of study..." value={fieldSearch} onChange={(e) => { setFieldSearch(e.target.value); setPage(1); }} style={{ width: 160, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="number" placeholder="Min Age" value={ageMin} onChange={(e) => { setAgeMin(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+              <span style={{ color: "#64748b" }}>-</span>
+              <input type="number" placeholder="Max Age" value={ageMax} onChange={(e) => { setAgeMax(e.target.value); setPage(1); }} style={{ width: 90, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            </div>
+            <input type="number" placeholder="Min Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }} style={{ width: 110, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ fontSize: "0.8rem", color: "#64748b" }}>From</label>
+              <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} style={{ padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+              <label style={{ fontSize: "0.8rem", color: "#64748b" }}>To</label>
+              <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} style={{ padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
+            </div>
+          </div>
         </div>
 
         {canUpdateStatus && paginatedApps.length > 0 && (
