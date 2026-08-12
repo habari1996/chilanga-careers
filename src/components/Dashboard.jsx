@@ -79,6 +79,41 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     return i !== -1 ? stored.slice(i + marker.length) : stored;
   };
 
+  const getFileExt = (storedOrUrl) => {
+    if (!storedOrUrl) return "";
+    const path = (cvPathFromStored(storedOrUrl) || storedOrUrl).split("?")[0];
+    const parts = path.split(".");
+    return parts.length > 1 ? parts.pop().toLowerCase() : "";
+  };
+
+  const isPreviewableExt = (ext) => ["pdf", "png", "jpg", "jpeg", "gif", "webp"].includes((ext || "").toLowerCase());
+
+  const safeDownloadName = (fullName, label, ext) => {
+    const base = (fullName || "candidate").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_").slice(0, 40) || "candidate";
+    const labelPart = (label || "document").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_");
+    const e = (ext || "bin").toLowerCase();
+    return `${base}_${labelPart}.${e}`;
+  };
+
+  const downloadDoc = async (url, fileName) => {
+    if (!url) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const obj = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = obj;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(obj);
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   useEffect(() => {
     let active = true;
     const resolveDocs = async () => {
@@ -88,8 +123,10 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       const resolveOne = async (stored) => {
         const path = cvPathFromStored(stored);
         if (!path) return null;
+        const ext = getFileExt(stored);
         const { data, error } = await supabase.storage.from("cvs").createSignedUrl(path, 3600);
-        return error ? null : data.signedUrl;
+        if (error || !data?.signedUrl) return null;
+        return { url: data.signedUrl, ext, path, previewable: isPreviewableExt(ext) };
       };
       const [cv, qualifications, tertiary, nrc] = await Promise.all([
         resolveOne(selectedApplicant.cv_url),
@@ -248,7 +285,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     if (!newJob.title.trim() || !newJob.description.trim()) { alert("Job Title and Description are required!"); return; }
     setPostingJob(true);
     try {
-      const { error } = await supabase.from("jobs").insert([{ title: newJob.title.trim(), location: newJob.location || "Lusaka", department: newJob.department || "Open (Multiple fields)", job_type: newJob.job_type || "Full-time", description: newJob.description.trim(), deadline: newJob.deadline || null, status: "Pending Approval" }]);
+      const { error } = await supabase.from("jobs").insert([{ title: newJob.title.trim(), location: newJob.location || "Lusaka", department: newJob.department || "Open (Multiple fields)", job_type: "Full-time", description: newJob.description.trim(), deadline: newJob.deadline || null, status: "Pending Approval" }]);
       if (error) throw error;
       alert("Job submitted for approval successfully!");
       setShowJobModal(false);
@@ -303,12 +340,47 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     return { ...base, background: "#f1f5f9", color: "#475569" };
   };
 
-  const renderDocSection = (label, url) => (
-    <div>
-      <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: 6 }}>{label}</div>
-      {url ? (<><div style={resumeContainer}><iframe src={url} style={iframeStyle} title={label} /></div><a href={url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a></>) : (<p style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "0.85rem", margin: 0 }}>Not uploaded</p>)}
-    </div>
-  );
+  const renderDocSection = (label, doc) => {
+    if (!doc || !doc.url) {
+      return (
+        <div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: 6 }}>{label}</div>
+          <p style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "0.85rem", margin: 0 }}>Not uploaded</p>
+        </div>
+      );
+    }
+    const fileName = safeDownloadName(selectedApplicant?.full_name, label, doc.ext || "bin");
+    const extLabel = doc.ext ? `.${doc.ext}` : "this file type";
+    return (
+      <div>
+        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#475569", marginBottom: 6 }}>{label}</div>
+        {doc.previewable ? (
+          <div style={resumeContainer}>
+            <iframe src={doc.url} style={iframeStyle} title={label} />
+          </div>
+        ) : (
+          <div style={{ ...resumeContainer, padding: "20px 16px", textAlign: "center", background: "#f8fafc" }}>
+            <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "#334155", marginBottom: 6 }}>Preview not available</div>
+            <p style={{ margin: "0 0 12px", fontSize: "0.85rem", color: "#64748b", lineHeight: 1.5 }}>
+              {extLabel} files cannot be shown in the browser. Download to open in Word or the right app.
+            </p>
+          </div>
+        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8, alignItems: "center" }}>
+          {doc.previewable && (
+            <a href={doc.url} target="_blank" rel="noopener noreferrer" style={openLink}>Open in New Tab ↗</a>
+          )}
+          <button
+            type="button"
+            onClick={() => downloadDoc(doc.url, fileName)}
+            style={{ background: "none", border: "none", padding: 0, color: "#0ea5e9", fontSize: "0.95rem", cursor: "pointer", textDecoration: "underline" }}
+          >
+            Download {doc.ext ? `.${doc.ext}` : "file"}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div>
