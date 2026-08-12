@@ -23,6 +23,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const [confirm, setConfirm] = useState(null);
   const [confirmReason, setConfirmReason] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const canApproveJobs = permissions?.canApproveJobs === true;
   const canPostJobs = permissions?.canPostJobs === true;
@@ -155,6 +156,53 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const shortlistedApps = apps.filter((a) => a.status === "Shortlisted").length;
   const hiredApps = apps.filter((a) => a.status === "Hired").length;
 
+  const pageIds = paginatedApps.map((a) => a.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+  const someSelected = selectedIds.length > 0;
+
+  const toggleSelect = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAllPage = () => {
+    if (allPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds([]);
+
+  const doBulkUpdateStatus = async (ids, newStatus) => {
+    if (!canUpdateStatus) { alert("You do not have permission to update application status."); return; }
+    if (!ids.length) return;
+    const { error } = await supabase.from("applications").update({ status: newStatus }).in("id", ids);
+    if (error) throw new Error(error.message);
+    clearSelection();
+    refreshData();
+    if (selectedApplicant && ids.includes(selectedApplicant.id)) {
+      setSelectedApplicant({ ...selectedApplicant, status: newStatus });
+    }
+    showToast(`${ids.length} application${ids.length > 1 ? "s" : ""} marked as ${newStatus}.`);
+  };
+
+  const requestBulkStatus = (newStatus) => {
+    const count = selectedIds.length;
+    if (!count) return;
+    const isReject = newStatus === "Rejected";
+    openConfirm({
+      title: isReject ? `Reject ${count} candidate${count > 1 ? "s" : ""}?` : `Shortlist ${count} candidate${count > 1 ? "s" : ""}?`,
+      message: isReject
+        ? `This will mark ${count} selected application${count > 1 ? "s" : ""} as Rejected.`
+        : `This will mark ${count} selected application${count > 1 ? "s" : ""} as Shortlisted.`,
+      confirmLabel: isReject ? "Yes, Reject All" : "Yes, Shortlist All",
+      danger: isReject,
+      onConfirm: async () => doBulkUpdateStatus(selectedIds, newStatus),
+    });
+  };
+
   const doUpdateStatus = async (id, newStatus) => {
     if (!canUpdateStatus) { alert("You do not have permission to update application status."); return; }
     const { error } = await supabase.from("applications").update({ status: newStatus }).eq("id", id);
@@ -206,8 +254,8 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     else throw new Error(error.message);
   };
 
-  const requestApproveJob = (job) => openConfirm({ title: "Approve this job?", message: `\"${job.title}\" will go live on the public Jobs page.`, confirmLabel: "Yes, Approve", danger: false, onConfirm: async () => doApproveJob(job.id) });
-  const requestRejectJob = (job) => openConfirm({ title: "Reject this job?", message: `\"${job.title}\" will not appear on the Jobs page.`, confirmLabel: "Yes, Reject", danger: true, needReason: true, onConfirm: async (reason) => doRejectJob(job.id, reason) });
+  const requestApproveJob = (job) => openConfirm({ title: "Approve this job?", message: `"${job.title}" will go live on the public Jobs page.`, confirmLabel: "Yes, Approve", danger: false, onConfirm: async () => doApproveJob(job.id) });
+  const requestRejectJob = (job) => openConfirm({ title: "Reject this job?", message: `"${job.title}" will not appear on the Jobs page.`, confirmLabel: "Yes, Reject", danger: true, needReason: true, onConfirm: async (reason) => doRejectJob(job.id, reason) });
 
   const exportCSV = () => {
     if (!canExportCSV) { alert("You do not have permission to export."); return; }
@@ -216,7 +264,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     const header = cols.join(",");
     const rows = filteredApps.map((app) => {
       const points = grade12Data[app.id] || 0;
-      return cols.map((col) => { let val = col === "total_points" ? points : (app[col] ?? ""); if (typeof val === "string") val = val.replace(/"/g, '""'); return `\"${val}\"`; }).join(",");
+      return cols.map((col) => { let val = col === "total_points" ? points : (app[col] ?? ""); if (typeof val === "string") val = val.replace(/"/g, '""'); return `"${val}"`; }).join(",");
     });
     const csvContent = [header, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -246,7 +294,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
 
   return (
     <div>
-      <div style={{ marginRight: selectedApplicant ? "420px" : "0", transition: "margin-right 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+      <div style={{ marginRight: selectedApplicant ? "420px" : "0", transition: "margin-right 0.3s cubic-bezier(0.16, 1, 0.3, 1)", paddingBottom: someSelected ? 80 : 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>Recruiter Dashboard</h2>
           <div style={{ display: "flex", gap: 12 }}>
@@ -299,6 +347,16 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           <input type="number" placeholder="Min Total Points" value={minPoints} onChange={(e) => { setMinPoints(e.target.value); setPage(1); }} style={{ width: 140, padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 10, fontSize: "0.95rem" }} />
           <select value={sortMode} onChange={(e) => { setSortMode(e.target.value); setPage(1); }} style={selectStyle}><option value="newest">Newest First</option><option value="bestMatch">Best Match</option><option value="points">Best Results (Lowest Points)</option><option value="name">Name A-Z</option></select>
         </div>
+
+        {canUpdateStatus && paginatedApps.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.95rem", color: "#334155", fontWeight: 500 }}>
+              <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllPage} style={{ width: 16, height: 16, cursor: "pointer" }} />
+              Select all on this page
+            </label>
+            {someSelected && <span style={{ fontSize: "0.9rem", color: "#64748b" }}>{selectedIds.length} selected</span>}
+          </div>
+        )}
         {paginatedApps.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}><p style={{ fontSize: 18 }}>No applications match your filters.</p></div>
         ) : (
@@ -307,8 +365,16 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
               const isNew = app.status === "New";
               const totalPoints = grade12Data[app.id] || 0;
               return (
-                <div key={app.id} style={{ ...cardStyle, borderLeft: isNew ? "4px solid #22c55e" : "4px solid transparent", background: isNew ? "#f8fff9" : "white" }} onClick={() => setSelectedApplicant(app)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}><h4 style={{ margin: "0 0 4px 0" }}>{app.full_name}</h4>{isNew && <span style={{ fontSize: "10px", background: "#22c55e", color: "white", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>NEW</span>}</div>
+                <div key={app.id} style={{ ...cardStyle, borderLeft: isNew ? "4px solid #22c55e" : selectedIds.includes(app.id) ? "4px solid #0f172a" : "4px solid transparent", background: selectedIds.includes(app.id) ? "#f8fafc" : isNew ? "#f8fff9" : "white" }} onClick={() => setSelectedApplicant(app)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {canUpdateStatus && (
+                        <input type="checkbox" checked={selectedIds.includes(app.id)} onClick={(e) => e.stopPropagation()} onChange={(e) => toggleSelect(app.id, e)} style={{ width: 16, height: 16, cursor: "pointer", flexShrink: 0 }} />
+                      )}
+                      <h4 style={{ margin: "0 0 4px 0" }}>{app.full_name}</h4>
+                    </div>
+                    {isNew && <span style={{ fontSize: "10px", background: "#22c55e", color: "white", padding: "1px 8px", borderRadius: "9999px", fontWeight: 600 }}>NEW</span>}
+                  </div>
                   <p style={{ margin: "2px 0", color: "#64748b", fontSize: 14 }}>{app.email}</p>
                   <p style={{ margin: "4px 0", fontSize: 14 }}>{app.qualification} — {app.institution}</p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
@@ -321,6 +387,15 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         )}
       </div>
+
+      {someSelected && canUpdateStatus && (
+        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "white", padding: "14px 20px", borderRadius: 14, display: "flex", alignItems: "center", gap: 14, boxShadow: "0 12px 40px rgba(0,0,0,0.25)", zIndex: 250, maxWidth: "95vw" }}>
+          <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{selectedIds.length} selected</span>
+          <button onClick={() => requestBulkStatus("Shortlisted")} style={{ padding: "10px 16px", background: "#fef3c7", color: "#854d0e", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Shortlist</button>
+          <button onClick={() => requestBulkStatus("Rejected")} style={{ padding: "10px 16px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Reject</button>
+          <button onClick={clearSelection} style={{ padding: "10px 14px", background: "transparent", color: "#cbd5e1", border: "1px solid #475569", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Clear</button>
+        </div>
+      )}
 
       {selectedApplicant && (
         <>
@@ -368,7 +443,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         </>
       )}
 
-      {toast.show && (<div style={{ position: "fixed", bottom: "24px", right: "24px", background: "#0f172a", color: "white", padding: "14px 22px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px" }}>{toast.message}</div>)}
+      {toast.show && (<div style={{ position: "fixed", bottom: someSelected ? "90px" : "24px", right: "24px", background: "#0f172a", color: "white", padding: "14px 22px", borderRadius: "12px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)", zIndex: 300, maxWidth: "380px" }}>{toast.message}</div>)}
 
       {confirm && (
         <div style={{ ...overlayStyle, zIndex: 400 }} onClick={(e) => e.target === e.currentTarget && !confirmLoading && closeConfirm()}>
