@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import useIsMobile from "../hooks/useIsMobile";
 
 export default function JobList({ jobs, setTab }) {
+  const isMobile = useIsMobile();
   const [selectedJob, setSelectedJob] = useState(null);
 
   // Only show Published jobs on the public page
@@ -10,8 +12,8 @@ export default function JobList({ jobs, setTab }) {
 
   if (!publishedJobs || publishedJobs.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: "100px 20px" }}>
-        <h2 style={{ fontSize: "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
+      <div style={{ textAlign: "center", padding: isMobile ? "48px 16px" : "100px 20px" }}>
+        <h2 style={{ fontSize: isMobile ? "1.4rem" : "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
         <p style={{ color: "#64748b", marginTop: 12, fontSize: "1.1rem" }}>
           Check back later or{" "}
           <span
@@ -29,7 +31,7 @@ export default function JobList({ jobs, setTab }) {
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: "50px" }}>
-        <h2 style={{ fontSize: "2.4rem", fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+        <h2 style={{ fontSize: isMobile ? "1.6rem" : "2.4rem", fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
           Open Job Opportunities
         </h2>
         <p style={{ fontSize: "1.15rem", color: "#475569", maxWidth: "600px", margin: "0 auto" }}>
@@ -40,7 +42,7 @@ export default function JobList({ jobs, setTab }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
           gap: "28px",
         }}
       >
@@ -66,122 +68,80 @@ export default function JobList({ jobs, setTab }) {
                   <strong>Experience:</strong> {job.experience_required}
                 </p>
               )}
-              {job.salary_range && (
-                <p>
-                  <strong>Salary:</strong> {job.salary_range}
-                </p>
-              )}
             </div>
 
             <p style={description}>
-              {job.description
-                ? job.description.substring(0, 180)
-                : "Exciting opportunity to join our growing team."}
-              {job.description && job.description.length > 180 ? "..." : ""}
+              {(job.description || "").length > 160
+                ? (job.description || "").slice(0, 160) + "…"
+                : job.description || "No description provided."}
             </p>
 
             {job.deadline && (
               <p style={deadline}>
-                Deadline:{" "}
-                {new Date(job.deadline).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                Closing: {new Date(job.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </p>
             )}
 
             <div style={buttonGroup}>
-              <button onClick={() => setTab("apply", job.id)} style={applyBtn}>
+              <button
+                onClick={() => setTab("apply", job.id)}
+                style={applyBtn}
+              >
                 Apply Now
               </button>
-              <button onClick={() => setSelectedJob(job)} style={detailsBtn}>
-                View Details
+              <button
+                onClick={() => setSelectedJob(job)}
+                style={detailsBtn}
+              >
+                Details
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ========== PROFESSIONAL DETAILS MODAL ========== */}
       {selectedJob && (
         <>
           <div
-            onClick={() => setSelectedJob(null)}
             style={{
               position: "fixed",
               inset: 0,
               background: "rgba(15, 23, 42, 0.55)",
-              backdropFilter: "blur(4px)",
               zIndex: 1000,
             }}
+            onClick={() => setSelectedJob(null)}
           />
-
           <div style={modalContainer}>
-            <div style={modalContent}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "#0f172a" }}>
-                    {selectedJob.title}
-                  </h2>
-                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <span style={badge}>{selectedJob.job_type || "Full-time"}</span>
-                    <span style={{ ...badge, background: "#e0f2fe", color: "#0369a1" }}>
-                      {selectedJob.location || "Zambia"}
-                    </span>
-                  </div>
-                </div>
+            <div
+              style={{
+                ...modalContent,
+                padding: isMobile ? "24px 16px" : "36px",
+                margin: isMobile ? "12px" : undefined,
+                maxWidth: isMobile ? "100%" : "640px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                <h3 style={{ margin: 0, fontSize: isMobile ? "1.25rem" : "1.5rem", fontWeight: 700, color: "#0f172a" }}>
+                  {selectedJob.title}
+                </h3>
                 <button
                   onClick={() => setSelectedJob(null)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: 24,
-                    cursor: "pointer",
-                    color: "#64748b",
-                    lineHeight: 1,
-                    padding: 4,
-                  }}
+                  style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#64748b", lineHeight: 1 }}
                 >
                   ✕
                 </button>
               </div>
-
-              <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px 20px", marginBottom: 24 }}>
-                <p style={{ margin: "0 0 8px", color: "#475569" }}>
-                  <strong>Department:</strong> {selectedJob.department || "Open (Multiple fields)"}
-                </p>
-                {selectedJob.experience_required && (
-                  <p style={{ margin: "0 0 8px", color: "#475569" }}>
-                    <strong>Experience:</strong> {selectedJob.experience_required}
-                  </p>
-                )}
-                {selectedJob.salary_range && (
-                  <p style={{ margin: "0 0 8px", color: "#475569" }}>
-                    <strong>Salary:</strong> {selectedJob.salary_range}
-                  </p>
-                )}
+              <div style={{ color: "#475569", fontSize: "0.98rem", lineHeight: 1.7, marginBottom: 20 }}>
+                <p><strong>Location:</strong> {selectedJob.location || "Zambia"}</p>
+                <p><strong>Department:</strong> {selectedJob.department || "Open (Multiple fields)"}</p>
+                <p><strong>Type:</strong> {selectedJob.job_type || "Full-time"}</p>
                 {selectedJob.deadline && (
-                  <p style={{ margin: 0, color: "#475569" }}>
-                    <strong>Deadline:</strong>{" "}
-                    {new Date(selectedJob.deadline).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
+                  <p><strong>Deadline:</strong> {new Date(selectedJob.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
                 )}
               </div>
-
-              <div style={{ marginBottom: 32 }}>
-                <h4 style={{ margin: "0 0 12px", fontSize: "1.05rem", color: "#0f172a" }}>
-                  About the Role
-                </h4>
-                <p style={{ margin: 0, color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                  {selectedJob.description || "No further details available."}
-                </p>
+              <div style={{ color: "#334155", lineHeight: 1.65, marginBottom: 28, whiteSpace: "pre-wrap" }}>
+                {selectedJob.description || "No description provided."}
               </div>
-
               <div style={{ display: "flex", gap: 12 }}>
                 <button
                   onClick={() => {

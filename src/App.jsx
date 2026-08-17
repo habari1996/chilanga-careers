@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import useIsMobile from "./hooks/useIsMobile";
 import Navbar from "./components/Navbar";
 import ApplyForm from "./components/ApplyForm";
 import AuthForm from "./components/AuthForm";
@@ -9,6 +10,7 @@ import TrackApplication from "./components/TrackApplication";
 import { getPermissions } from "./roles";
 
 export default function App() {
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState("home");
   const [session, setSession] = useState(null);
   const [apps, setApps] = useState([]);
@@ -73,15 +75,15 @@ export default function App() {
       setSession(null);
       setSelectedJobId(null);
       setTab("home");
-      alert("✅ You have been logged out successfully.");
-    } catch (err) {
-      console.error("Logout error:", err);
-      alert("Logout failed. Please try again.");
+    } catch (e) {
+      console.error(e);
+      setSession(null);
+      setTab("home");
     }
   };
 
   return (
-    <div style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <Navbar
         tab={tab}
         setTab={handleSetTab}
@@ -89,97 +91,90 @@ export default function App() {
         isHR={isHR}
         onSignOut={handleSignOut}
       />
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 16px" }}>
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: isMobile ? "12px 12px" : "20px 16px" }}>
         {tab === "home" && (
-          <div style={{ textAlign: "center", padding: "100px 20px 80px" }}>
+          <div style={{ textAlign: "center", padding: isMobile ? "40px 16px 48px" : "100px 20px 80px" }}>
             <div style={{ maxWidth: "900px", margin: "0 auto" }}>
               <h1 style={{
-                fontSize: "3.6rem",
+                fontSize: isMobile ? "1.85rem" : "3.6rem",
                 fontWeight: 700,
-                marginBottom: 24,
+                marginBottom: isMobile ? 16 : 24,
                 color: "#0f172a",
-                lineHeight: 1.1
+                lineHeight: 1.2,
               }}>
                 Chilanga Cement<br />
-                Job Application Portal
+                Step Up Program 2026
               </h1>
               <p style={{
-                fontSize: "1.35rem",
+                fontSize: isMobile ? "1.05rem" : "1.35rem",
                 color: "#475569",
-                maxWidth: "680px",
-                margin: "0 auto 50px",
-                lineHeight: 1.6
+                maxWidth: "700px",
+                margin: "0 auto",
+                marginBottom: isMobile ? 28 : 40,
+                lineHeight: 1.6,
               }}>
-                Join one of Zambia’s most respected and established companies.
                 At Chilanga Cement, we build more than infrastructure — we build careers and futures.
               </p>
               <div style={{
                 display: "flex",
                 justifyContent: "center",
-                gap: "20px",
+                gap: isMobile ? "12px" : "20px",
                 flexWrap: "wrap",
-                marginBottom: "70px"
+                marginBottom: isMobile ? "40px" : "70px"
               }}>
-                <button
-                  onClick={() => handleSetTab("jobs")}
-                  style={{
-                    padding: "18px 48px",
-                    fontSize: "1.15rem",
-                    fontWeight: 600,
-                    background: "#0f172a",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    boxShadow: "0 8px 25px rgba(15, 23, 42, 0.15)"
-                  }}
-                >
-                  Browse Open Positions
-                </button>
                 <button
                   onClick={() => handleSetTab("apply")}
                   style={{
-                    padding: "18px 48px",
-                    fontSize: "1.15rem",
-                    fontWeight: 600,
+                    padding: isMobile ? "14px 24px" : "18px 48px",
+                    fontSize: isMobile ? "1rem" : "1.15rem",
                     background: "#b45309",
                     color: "white",
                     border: "none",
                     borderRadius: 12,
                     cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    boxShadow: "0 8px 25px rgba(245, 158, 11, 0.25)"
+                    fontWeight: 600,
                   }}
                 >
-                  Start Your Application
+                  Apply Now
+                </button>
+                <button
+                  onClick={() => handleSetTab("jobs")}
+                  style={{
+                    padding: isMobile ? "14px 24px" : "18px 48px",
+                    fontSize: isMobile ? "1rem" : "1.15rem",
+                    background: "white",
+                    color: "#0f172a",
+                    border: "2px solid #e2e8f0",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  View Open Roles
                 </button>
               </div>
 
               <div style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "50px",
-                flexWrap: "wrap",
-                padding: "40px 0",
-                borderTop: "1px solid #e2e8f0",
-                borderBottom: "1px solid #e2e8f0"
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
+                gap: isMobile ? 16 : 24,
+                marginTop: isMobile ? 20 : 40,
               }}>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "#0f172a" }}>60+</div>
-                  <div style={{ color: "#64748b", marginTop: 6 }}>Years of Excellence</div>
+                  <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>60+</div>
+                  <div style={{ color: "#64748b", marginTop: 6, fontSize: isMobile ? "0.85rem" : undefined }}>Years of Excellence</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "#0f172a" }}>500+</div>
-                  <div style={{ color: "#64748b", marginTop: 6 }}>Employees Nationwide</div>
+                  <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>500+</div>
+                  <div style={{ color: "#64748b", marginTop: 6, fontSize: isMobile ? "0.85rem" : undefined }}>Employees Nationwide</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "#0f172a" }}>4</div>
-                  <div style={{ color: "#64748b", marginTop: 6 }}>Manufacturing Plants</div>
+                  <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>4</div>
+                  <div style={{ color: "#64748b", marginTop: 6, fontSize: isMobile ? "0.85rem" : undefined }}>Manufacturing Plants</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "#0f172a" }}>100%</div>
-                  <div style={{ color: "#64748b", marginTop: 6 }}>Zambian Owned</div>
+                  <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>100%</div>
+                  <div style={{ color: "#64748b", marginTop: 6, fontSize: isMobile ? "0.85rem" : undefined }}>Zambian Owned</div>
                 </div>
               </div>
             </div>
@@ -208,7 +203,7 @@ export default function App() {
         )}
 
         {tab === "dashboard" && !isHR && (
-          <div style={{ textAlign: "center", padding: "100px 20px" }}>
+          <div style={{ textAlign: "center", padding: isMobile ? "48px 16px" : "100px 20px" }}>
             <h2>🔒 Restricted Access</h2>
             <p>This dashboard is only for authorized HR staff.</p>
             <button onClick={() => handleSetTab("auth")} style={primaryBtn}>
