@@ -75,15 +75,15 @@ export default function App() {
       setSession(null);
       setSelectedJobId(null);
       setTab("home");
-      alert("✅ You have been logged out successfully.");
-    } catch (err) {
-      console.error("Logout error:", err);
-      alert("Logout failed. Please try again.");
+    } catch (e) {
+      console.error(e);
+      setSession(null);
+      setTab("home");
     }
   };
 
   return (
-    <div style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <Navbar
         tab={tab}
         setTab={handleSetTab}
@@ -103,16 +103,16 @@ export default function App() {
                 lineHeight: 1.2,
               }}>
                 Chilanga Cement<br />
-                Job Application Portal
+                Step Up Program 2026
               </h1>
               <p style={{
                 fontSize: isMobile ? "1.05rem" : "1.35rem",
                 color: "#475569",
-                maxWidth: "680px",
-                margin: isMobile ? "0 auto 28px" : "0 auto 50px",
-                lineHeight: 1.6
+                maxWidth: "700px",
+                margin: "0 auto",
+                marginBottom: isMobile ? 28 : 40,
+                lineHeight: 1.6,
               }}>
-                Join one of Zambia’s most respected and established companies.
                 At Chilanga Cement, we build more than infrastructure — we build careers and futures.
               </p>
               <div style={{
@@ -123,53 +123,42 @@ export default function App() {
                 marginBottom: isMobile ? "40px" : "70px"
               }}>
                 <button
-                  onClick={() => handleSetTab("jobs")}
-                  style={{
-                    padding: isMobile ? "14px 24px" : "18px 48px",
-                    fontSize: isMobile ? "1rem" : "1.15rem",
-                    fontWeight: 600,
-                    background: "#0f172a",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    boxShadow: "0 8px 25px rgba(15, 23, 42, 0.15)",
-                    width: isMobile ? "100%" : undefined,
-                    maxWidth: isMobile ? "320px" : undefined
-                  }}
-                >
-                  Browse Open Positions
-                </button>
-                <button
                   onClick={() => handleSetTab("apply")}
                   style={{
                     padding: isMobile ? "14px 24px" : "18px 48px",
                     fontSize: isMobile ? "1rem" : "1.15rem",
-                    fontWeight: 600,
                     background: "#b45309",
                     color: "white",
                     border: "none",
                     borderRadius: 12,
                     cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    boxShadow: "0 8px 25px rgba(245, 158, 11, 0.25)",
-                    width: isMobile ? "100%" : undefined,
-                    maxWidth: isMobile ? "320px" : undefined
+                    fontWeight: 600,
                   }}
                 >
-                  Start Your Application
+                  Apply Now
+                </button>
+                <button
+                  onClick={() => handleSetTab("jobs")}
+                  style={{
+                    padding: isMobile ? "14px 24px" : "18px 48px",
+                    fontSize: isMobile ? "1rem" : "1.15rem",
+                    background: "white",
+                    color: "#0f172a",
+                    border: "2px solid #e2e8f0",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  View Open Roles
                 </button>
               </div>
 
               <div style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: isMobile ? "24px" : "50px",
-                flexWrap: "wrap",
-                padding: isMobile ? "24px 0" : "40px 0",
-                borderTop: "1px solid #e2e8f0",
-                borderBottom: "1px solid #e2e8f0"
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
+                gap: isMobile ? 16 : 24,
+                marginTop: isMobile ? 20 : 40,
               }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>60+</div>
@@ -224,7 +213,7 @@ export default function App() {
         )}
       </main>
 
-      <footer style={{ textAlign: "center", padding: isMobile ? "28px 16px" : "40px", background: "#0f172a", color: "#ccc", marginTop: isMobile ? 40 : 80 }}>
+      <footer style={{ textAlign: "center", padding: "40px", background: "#0f172a", color: "#ccc", marginTop: 80 }}>
         © 2026 Chilanga Cement PLC • Careers Portal
       </footer>
     </div>
