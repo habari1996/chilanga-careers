@@ -176,6 +176,9 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         upload(files.tertiary, "tertiary")
       ]);
 
+      // Payload for submit_application RPC (SECURITY DEFINER).
+      // Do NOT send status or captcha_token — the function forces status='New'
+      // and captcha is verified client-side only for now (server-side later).
       const payload = {
         full_name: form.full_name.trim(),
         email: form.email.trim().toLowerCase(),
@@ -195,24 +198,26 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         nrc_url,
         qualifications_url,
         tertiary_certificate_url,
-        job_id: form.job_id || null,
-        status: "New",
-        captcha_token: captchaToken
+        job_id: form.job_id || null
       };
 
-      const { data: app, error } = await sb.from("applications").insert(payload).select("id").single();
+      // Use the security-definer RPC so anon can get the new row ID back
+      // (direct .insert().select() is blocked by RLS).
+      const { data: newId, error } = await sb.rpc("submit_application", { p: payload });
       if (error) throw error;
+      if (!newId) throw new Error("Submission succeeded but no application ID was returned.");
 
-      // Insert Grade 12 results
+      // Insert Grade 12 results (anon INSERT still allowed by RLS)
       const gradeRows = grade12Subjects
         .filter(s => s.subject && s.points)
         .map(s => ({
-          application_id: app.id,
+          application_id: newId,
           subject: s.subject.trim(),
           points: parseInt(s.points)
         }));
       if (gradeRows.length) {
-        await sb.from("grade12_results").insert(gradeRows);
+        const { error: gErr } = await sb.from("grade12_results").insert(gradeRows);
+        if (gErr) console.warn("Grade 12 insert warning:", gErr.message);
       }
 
       if (refreshData) await refreshData();
