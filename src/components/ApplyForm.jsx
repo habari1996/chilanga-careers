@@ -159,7 +159,7 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
     setLoading(true);
     try {
       const { supabase: sb } = await import("../supabaseClient");
-      // Upload files
+      // Upload files (client-side; anon upload policy allows this)
       const upload = async (file, folder) => {
         if (!file) return null;
         const ext = file.name.split(".").pop();
@@ -176,10 +176,8 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         upload(files.tertiary, "tertiary")
       ]);
 
-      // Payload for submit_application RPC (SECURITY DEFINER).
-      // Do NOT send status or captcha_token — the function forces status='New'
-      // and captcha is verified client-side only for now (server-side later).
-      const payload = {
+      // Build application payload (paths only — files already uploaded)
+      const application = {
         full_name: form.full_name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
@@ -201,23 +199,21 @@ export default function ApplyForm({ onSuccess, refreshData, initialJobId }) {
         job_id: form.job_id || null
       };
 
-      // Use the security-definer RPC so anon can get the new row ID back
-      // (direct .insert().select() is blocked by RLS).
-      const { data: newId, error } = await sb.rpc("submit_application", { p: payload });
-      if (error) throw error;
-      if (!newId) throw new Error("Submission succeeded but no application ID was returned.");
-
-      // Insert Grade 12 results (anon INSERT still allowed by RLS)
-      const gradeRows = grade12Subjects
+      const grade12 = grade12Subjects
         .filter(s => s.subject && s.points)
-        .map(s => ({
-          application_id: newId,
-          subject: s.subject.trim(),
-          points: parseInt(s.points)
-        }));
-      if (gradeRows.length) {
-        const { error: gErr } = await sb.from("grade12_results").insert(gradeRows);
-        if (gErr) console.warn("Grade 12 insert warning:", gErr.message);
+        .map(s => ({ subject: s.subject.trim(), points: parseInt(s.points) }));
+
+      // Server-side Turnstile verification + submit_application RPC
+      // via Netlify Function (protects against bots even if client is bypassed)
+      const res = await fetch("/.netlify/functions/submit-application", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ captchaToken, application, grade12 })
+      });
+
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || "Submission failed. Please try again.");
       }
 
       if (refreshData) await refreshData();
