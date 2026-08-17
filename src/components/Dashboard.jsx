@@ -282,7 +282,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         </div>
 
-        {/* Pending Jobs Approval */}
         {canApproveJobs && pendingJobs.length > 0 && (
           <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: 16, marginBottom: 20 }}>
             <h3 style={{ margin: "0 0 12px", fontSize: "1.05rem" }}>Jobs Pending Approval ({pendingJobs.length})</h3>
@@ -301,7 +300,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         )}
 
-        {/* Filters */}
         <div style={{ background: "#f8fafc", borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 160px), 1fr))", gap: 12, marginBottom: 12 }}>
             <input placeholder="Search name, email, phone..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} style={mInput} />
@@ -341,7 +339,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         </div>
 
-        {/* Select all */}
         {paginatedApps.length > 0 && canUpdateStatus && (
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.95rem" }}>
@@ -351,7 +348,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         )}
 
-        {/* Cards */}
         {paginatedApps.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}><p style={{ fontSize: 18 }}>No applications match your filters.</p></div>
         ) : (
@@ -362,15 +358,15 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
               return (
                 <div key={app.id} style={{ background: selected ? "#f0f9ff" : "#fff", border: selected ? "2px solid #0ea5e9" : "1px solid #e2e8f0", borderRadius: 14, padding: 18, cursor: "pointer", transition: "all 0.2s" }} onClick={() => setSelectedApplicant(app)}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                       {canUpdateStatus && (
                         <input type="checkbox" checked={selected} onChange={(e) => { e.stopPropagation(); toggleSelect(app.id); }} onClick={e => e.stopPropagation()} />
                       )}
-                      <strong style={{ fontSize: "1.05rem" }}>{app.full_name}</strong>
+                      <strong style={{ fontSize: "1.05rem", wordBreak: "break-word" }}>{app.full_name}</strong>
                     </div>
-                    {isNew && <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: "0.75rem", padding: "2px 8px", borderRadius: 999 }}>New</span>}
+                    {isNew && <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: "0.75rem", padding: "2px 8px", borderRadius: 999, flexShrink: 0 }}>New</span>}
                   </div>
-                  <div style={{ color: "#64748b", fontSize: "0.9rem", lineHeight: 1.5 }}>
+                  <div style={{ color: "#64748b", fontSize: "0.9rem", lineHeight: 1.5, wordBreak: "break-word", overflowWrap: "anywhere" }}>
                     <div>{app.qualification}</div>
                     <div>{app.institution}</div>
                     <div>{app.email}</div>
@@ -382,7 +378,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 24, flexWrap: "wrap" }}>
             <button disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", cursor: "pointer" }}>Prev</button>
@@ -392,7 +387,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         )}
       </div>
 
-      {/* Bulk action bar */}
       {someSelected && canUpdateStatus && (
         <div style={{ position: "fixed", bottom: isMobile ? 12 : 24, left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "white", padding: isMobile ? "12px 14px" : "14px 20px", borderRadius: 14, display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, boxShadow: "0 12px 40px rgba(0,0,0,0.25)", zIndex: 250, maxWidth: "95vw", flexWrap: "wrap", justifyContent: "center" }}>
           <span style={{ fontWeight: 600 }}>{selectedIds.length} selected</span>
@@ -402,7 +396,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         </div>
       )}
 
-      {/* Sidebar */}
       {selectedApplicant && (
         <div style={{
           position: "fixed", top: 0, right: 0, bottom: 0,
@@ -413,10 +406,10 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
           zIndex: 200, overflowY: "auto"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: "1.2rem" }}>{selectedApplicant.full_name}</h3>
-            <button onClick={() => setSelectedApplicant(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#64748b" }}>✕</button>
+            <h3 style={{ margin: 0, fontSize: "1.2rem", wordBreak: "break-word", paddingRight: 8 }}>{selectedApplicant.full_name}</h3>
+            <button onClick={() => setSelectedApplicant(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#64748b", flexShrink: 0 }}>✕</button>
           </div>
-          <div style={{ fontSize: "0.95rem", color: "#475569", lineHeight: 1.7, marginBottom: 16 }}>
+          <div style={{ fontSize: "0.95rem", color: "#475569", lineHeight: 1.7, marginBottom: 16, wordBreak: "break-word", overflowWrap: "anywhere" }}>
             <div><strong>Email:</strong> {selectedApplicant.email}</div>
             <div><strong>Phone:</strong> {selectedApplicant.phone}</div>
             <div><strong>Gender:</strong> {selectedApplicant.gender} • Age {selectedApplicant.age}</div>
@@ -435,7 +428,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
             </div>
           )}
 
-          {/* Documents */}
           <h4 style={{ margin: "0 0 10px" }}>Documents</h4>
           {docsLoading ? <p style={{ color: "#64748b" }}>Loading documents...</p> : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -464,7 +456,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         </div>
       )}
 
-      {/* Job Modal */}
       {showJobModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: isMobile ? 8 : 20 }}>
           <div style={{ ...modalStyle, padding: isMobile ? "20px 16px" : "32px", maxWidth: isMobile ? "100%" : "720px", margin: isMobile ? "8px" : undefined, borderRadius: isMobile ? 14 : 20 }}>
@@ -489,7 +480,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         </div>
       )}
 
-      {/* Confirm dialog */}
       {confirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 16 }}>
           <div style={{ background: "white", borderRadius: 16, padding: 24, maxWidth: 420, width: "100%" }}>
@@ -506,7 +496,6 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         </div>
       )}
 
-      {/* Toast */}
       {toast.show && (
         <div style={{ position: "fixed", bottom: 24, right: 24, background: "#0f172a", color: "white", padding: "12px 20px", borderRadius: 10, zIndex: 500, boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>
           {toast.message}
