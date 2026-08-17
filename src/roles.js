@@ -1,4 +1,9 @@
 // src/roles.js
+//
+ // Primary source of truth for HR roles is the public.hr_staff table
+// (see migration 20260817160000_hr_staff_and_storage_notes.sql).
+// This client-side map is kept as a fast fallback / offline reference
+// and for the period before the migration is applied.
 
 export const ROLES = {
   HR_DIRECTOR: "hr_director",
@@ -7,7 +12,7 @@ export const ROLES = {
   ADMIN: "admin",
 };
 
-// Map emails to roles
+// Map emails to roles (mirrors the seed data in hr_staff)
 const USER_ROLES = {
   // Head of HR
   "wamusheke-yvonne.simenda@huaxin.com": ROLES.HR_DIRECTOR,
@@ -62,6 +67,7 @@ export function getPermissions(email) {
   const role = getUserRole(email);
 
   // Fallback: if email belongs to company domain but no specific role → treat as HR Officer
+  // (Database is_hr() also accepts these domains as a temporary safety net.)
   if (!role) {
     const isCompanyEmail =
       email?.toLowerCase().includes("@huaxin.com") ||
