@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import useIsMobile from "../hooks/useIsMobile";
 
 export default function JobList({ jobs, setTab }) {
+  const isMobile = useIsMobile();
   const [selectedJob, setSelectedJob] = useState(null);
 
   // Only show Published jobs on the public page
@@ -10,8 +12,8 @@ export default function JobList({ jobs, setTab }) {
 
   if (!publishedJobs || publishedJobs.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: "100px 20px" }}>
-        <h2 style={{ fontSize: "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
+      <div style={{ textAlign: "center", padding: isMobile ? "48px 16px" : "100px 20px" }}>
+        <h2 style={{ fontSize: isMobile ? "1.4rem" : "2rem", color: "#0f172a" }}>No Open Positions Right Now</h2>
         <p style={{ color: "#64748b", marginTop: 12, fontSize: "1.1rem" }}>
           Check back later or{" "}
           <span
@@ -28,11 +30,11 @@ export default function JobList({ jobs, setTab }) {
 
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-      <div style={{ textAlign: "center", marginBottom: "50px" }}>
-        <h2 style={{ fontSize: "2.4rem", fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+      <div style={{ textAlign: "center", marginBottom: isMobile ? "28px" : "50px" }}>
+        <h2 style={{ fontSize: isMobile ? "1.6rem" : "2.4rem", fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
           Open Job Opportunities
         </h2>
-        <p style={{ fontSize: "1.15rem", color: "#475569", maxWidth: "600px", margin: "0 auto" }}>
+        <p style={{ fontSize: isMobile ? "1rem" : "1.15rem", color: "#475569", maxWidth: "600px", margin: "0 auto" }}>
           Join a company with purpose. Explore current roles below.
         </p>
       </div>
@@ -40,14 +42,14 @@ export default function JobList({ jobs, setTab }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))",
-          gap: "28px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+          gap: isMobile ? "16px" : "28px",
         }}
       >
         {publishedJobs.map((job) => (
-          <div key={job.id} style={jobCard}>
+          <div key={job.id} style={{ ...jobCard, padding: isMobile ? "20px" : "32px" }}>
             <div style={jobHeader}>
-              <h3 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 600, color: "#0f172a" }}>
+              <h3 style={{ margin: 0, fontSize: isMobile ? "1.15rem" : "1.4rem", fontWeight: 600, color: "#0f172a" }}>
                 {job.title}
               </h3>
               <span style={badge}>{job.job_type || "Full-time"}</span>
@@ -91,7 +93,7 @@ export default function JobList({ jobs, setTab }) {
               </p>
             )}
 
-            <div style={buttonGroup}>
+            <div style={{ ...buttonGroup, flexDirection: isMobile ? "column" : "row" }}>
               <button onClick={() => setTab("apply", job.id)} style={applyBtn}>
                 Apply Now
               </button>
@@ -103,7 +105,6 @@ export default function JobList({ jobs, setTab }) {
         ))}
       </div>
 
-      {/* ========== PROFESSIONAL DETAILS MODAL ========== */}
       {selectedJob && (
         <>
           <div
@@ -117,11 +118,11 @@ export default function JobList({ jobs, setTab }) {
             }}
           />
 
-          <div style={modalContainer}>
-            <div style={modalContent}>
+          <div style={{ ...modalContainer, padding: isMobile ? "12px" : "20px" }}>
+            <div style={{ ...modalContent, padding: isMobile ? "20px 16px" : "36px", borderRadius: isMobile ? 14 : 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, color: "#0f172a" }}>
+                  <h2 style={{ margin: 0, fontSize: isMobile ? "1.25rem" : "1.6rem", fontWeight: 700, color: "#0f172a" }}>
                     {selectedJob.title}
                   </h2>
                   <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -182,7 +183,7 @@ export default function JobList({ jobs, setTab }) {
                 </p>
               </div>
 
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 12, flexDirection: isMobile ? "column" : "row" }}>
                 <button
                   onClick={() => {
                     setSelectedJob(null);
@@ -207,7 +208,6 @@ export default function JobList({ jobs, setTab }) {
   );
 }
 
-// ==================== STYLES ====================
 const jobCard = {
   background: "#ffffff",
   borderRadius: "16px",
@@ -225,6 +225,7 @@ const jobHeader = {
   justifyContent: "space-between",
   alignItems: "flex-start",
   marginBottom: "20px",
+  gap: 12,
 };
 
 const badge = {
