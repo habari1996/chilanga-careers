@@ -56,38 +56,49 @@ export default function Navbar({ tab, setTab, session, isHR, onSignOut }) {
           flexDirection: isMobile ? "column" : "row",
         }}
       >
-        <strong style={{ fontSize: isMobile ? 18 : 22 }}>Chilanga Cement PLC</strong>
+        <strong style={{ fontSize: isMobile ? 18 : 22, whiteSpace: "nowrap" }}>
+          Chilanga Cement PLC
+        </strong>
 
         <div
           style={{
             display: "flex",
             gap: isMobile ? 8 : 10,
             flexWrap: "wrap",
-            width: isMobile ? "100%" : undefined,
+            width: isMobile ? "100%" : "auto",
           }}
         >
-          <button onClick={() => setTab("home")} style={tab === "home" ? activeBtn : ghostBtn}>
+          <button
+            onClick={() => setTab("home")}
+            style={tab === "home" ? activeBtn : ghostBtn}
+          >
             Home
           </button>
+
           <button onClick={() => setTab("jobs")} style={ghostBtn}>
             Jobs
           </button>
+
           <button onClick={() => setTab("apply")} style={primaryBtn}>
             Apply Now
           </button>
+
           <button onClick={() => setTab("track")} style={ghostBtn}>
             Track Application
           </button>
+
           {!session && (
             <button onClick={() => setTab("auth")} style={ghostBtn}>
               HR Login
             </button>
           )}
+
           {session && isHR && (
             <button onClick={() => setTab("dashboard")} style={ghostBtn}>
               Dashboard
             </button>
           )}
+
           {session && (
             <button onClick={onSignOut} style={ghostBtn}>
               Logout
