@@ -27,8 +27,14 @@ export default function App() {
       setSession(data.session);
       supabase.auth.onAuthStateChange((event, newSession) => {
         setSession(newSession);
-        if (event === "SIGNED_IN") setTab("dashboard");
-        if (event === "SIGNED_OUT") setTab("home");
+        if (event === "SIGNED_IN") {
+          setTab("dashboard");
+          loadData();
+        }
+        if (event === "SIGNED_OUT") {
+          setApps([]);
+          setTab("home");
+        }
       });
     };
     initialize();
@@ -74,6 +80,7 @@ export default function App() {
       if (error) throw error;
       setSession(null);
       setSelectedJobId(null);
+      setApps([]);
       setTab("home");
     } catch (err) {
       console.error("Sign out error:", err);
@@ -82,21 +89,16 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      <Navbar
-        tab={tab}
-        setTab={handleSetTab}
-        session={session}
-        isHR={isHR}
-        onSignOut={handleSignOut}
-      />
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: isMobile ? "12px 12px" : "20px 16px" }}>
+    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", background: "#f8fafc", minHeight: "100vh" }}>
+      <Navbar tab={tab} setTab={handleSetTab} session={session} isHR={isHR} onSignOut={handleSignOut} />
+
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: isMobile ? "16px 12px" : "32px 20px" }}>
         {tab === "home" && (
-          <div style={{ textAlign: "center", padding: isMobile ? "40px 16px 48px" : "100px 20px 80px" }}>
-            <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <div style={{ textAlign: "center", padding: isMobile ? "32px 8px" : "60px 20px" }}>
+            <div style={{ maxWidth: "800px", margin: "0 auto" }}>
               <h1 style={{
-                fontSize: isMobile ? "1.85rem" : "3.6rem",
-                fontWeight: 700,
+                fontSize: isMobile ? "2rem" : "3.2rem",
+                fontWeight: 800,
                 marginBottom: isMobile ? 16 : 24,
                 color: "#0f172a",
                 lineHeight: 1.2,
@@ -119,46 +121,21 @@ export default function App() {
                 justifyContent: "center",
                 gap: isMobile ? "12px" : "20px",
                 flexWrap: "wrap",
-                marginBottom: isMobile ? "40px" : "70px"
               }}>
-                <button
-                  onClick={() => handleSetTab("apply")}
-                  style={{
-                    padding: isMobile ? "14px 24px" : "18px 48px",
-                    fontSize: isMobile ? "1rem" : "1.15rem",
-                    background: "#b45309",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
+                <button onClick={() => handleSetTab("jobs")} style={primaryBtn}>View Open Roles</button>
+                <button onClick={() => handleSetTab("apply")} style={{ ...primaryBtn, background: "#0f172a" }}>
                   Apply Now
-                </button>
-                <button
-                  onClick={() => handleSetTab("jobs")}
-                  style={{
-                    padding: isMobile ? "14px 24px" : "18px 48px",
-                    fontSize: isMobile ? "1rem" : "1.15rem",
-                    background: "white",
-                    color: "#0f172a",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  View Open Positions
                 </button>
               </div>
 
               <div style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                gap: isMobile ? 20 : 32,
-                maxWidth: 800,
-                margin: "0 auto"
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: isMobile ? 16 : 32,
+                marginTop: isMobile ? 40 : 64,
+                maxWidth: 700,
+                marginLeft: "auto",
+                marginRight: "auto",
               }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>500+</div>
