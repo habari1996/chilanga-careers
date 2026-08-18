@@ -1,25 +1,18 @@
 /**
  * Netlify Function: submit-application
  *
- * Server-side protected application submission:
- * 1. Verifies Cloudflare Turnstile token with Cloudflare's siteverify API
- * 2. Calls the security-definer submit_application RPC
- * 3. Inserts grade12_results if provided
+ * 1. Verifies Cloudflare Turnstile server-side
+ * 2. Calls submit_application_full (service role) — application + grade12 in one TX
  *
- * File uploads remain client-side (anon upload policy on the cvs bucket).
- * The client sends only the resulting storage paths.
- *
- * Required Netlify environment variables:
- *   TURNSTILE_SECRET_KEY   – Cloudflare Turnstile secret key
- *   SUPABASE_URL           – e.g. https://xxxx.supabase.co
- *   SUPABASE_ANON_KEY      – public anon key (RPC is granted to anon)
- *   (optional) SUPABASE_SERVICE_ROLE_KEY – only if you later move uploads server-side
+ * Required env:
+ *   TURNSTILE_SECRET_KEY
+ *   SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY   (preferred)
  */
 
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 exports.handler = async (event) => {
-  // CORS + method guard
   const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
@@ -30,7 +23,6 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers, body: "" };
   }
-
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
   }
@@ -46,11 +38,10 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing required application fields" }) };
     }
 
-    // ── 1. Verify Turnstile with Cloudflare ──────────────────────────
     const secret = process.env.TURNSTILE_SECRET_KEY;
     if (!secret) {
       console.error("TURNSTILE_SECRET_KEY is not set");
-      return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error (CAPTCHA)" }) };
+      return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error" }) };
     }
 
     const verifyRes = await fetch(TURNSTILE_VERIFY_URL, {
@@ -62,10 +53,9 @@ exports.handler = async (event) => {
         remoteip: event.headers["x-nf-client-connection-ip"] || event.headers["client-ip"] || "",
       }),
     });
-
     const verifyData = await verifyRes.json();
     if (!verifyData.success) {
-      console.warn("Turnstile verification failed:", verifyData["error-codes"]);
+      console.warn("Turnstile failed:", verifyData["error-codes"]);
       return {
         statusCode: 403,
         headers,
@@ -73,16 +63,21 @@ exports.handler = async (event) => {
       };
     }
 
-    // ── 2. Call submit_application RPC ───────────────────────────────
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    const serviceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.VITE_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !serviceKey) {
       console.error("Supabase env vars missing");
-      return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error (DB)" }) };
+      return { statusCode: 500, headers, body: JSON.stringify({ error: "Server configuration error" }) };
     }
 
-    // Strip any client-supplied status / captcha / id fields
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn("SUPABASE_SERVICE_ROLE_KEY not set — falling back to anon key (less secure)");
+    }
+
     const safePayload = {
       full_name: String(application.full_name || "").trim(),
       email: String(application.email || "").trim().toLowerCase(),
@@ -105,67 +100,95 @@ exports.handler = async (event) => {
       job_id: application.job_id || null,
     };
 
-    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/submit_application`, {
+    const grade12Arr = Array.isArray(grade12)
+      ? grade12
+          .filter((g) => g && (g.subject || g.grade))
+          .map((g) => ({
+            subject: String(g.subject || "").trim(),
+            grade: String(g.grade || "").trim(),
+            points: parseInt(g.points, 10) || 0,
+          }))
+      : [];
+
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/submit_application_full`, {
       method: "POST",
       headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },
-      body: JSON.stringify({ p: safePayload }),
+      body: JSON.stringify({ p: safePayload, p_grade12: grade12Arr }),
     });
 
     if (!rpcRes.ok) {
       const errText = await rpcRes.text();
-      console.error("submit_application RPC failed:", rpcRes.status, errText);
+      console.error("submit_application_full failed:", rpcRes.status, errText);
+      if (rpcRes.status === 404 || (errText && errText.includes("submit_application_full"))) {
+        const legacy = await fetch(`${supabaseUrl}/rest/v1/rpc/submit_application`, {
+          method: "POST",
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({ p: safePayload }),
+        });
+        if (!legacy.ok) {
+          console.error("legacy submit_application failed:", await legacy.text());
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: "Could not save application. Please try again later." }),
+          };
+        }
+        const legacyId = await legacy.json();
+        if (grade12Arr.length && legacyId) {
+          const appId = typeof legacyId === "string" ? legacyId : legacyId;
+          for (const g of grade12Arr) {
+            await fetch(`${supabaseUrl}/rest/v1/grade12_results`, {
+              method: "POST",
+              headers: {
+                apikey: serviceKey,
+                Authorization: `Bearer ${serviceKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({
+                application_id: appId,
+                subject: g.subject,
+                grade: g.grade,
+                points: g.points,
+              }),
+            });
+          }
+        }
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ id: legacyId, ok: true }),
+        };
+      }
       return {
-        statusCode: 400,
+        statusCode: 500,
         headers,
-        body: JSON.stringify({ error: "Application submission failed", detail: errText }),
+        body: JSON.stringify({ error: "Could not save application. Please try again later." }),
       };
     }
 
-    const newId = await rpcRes.json(); // bigint returned directly
-
-    // ── 3. Insert grade12 results if any ─────────────────────────────
-    if (Array.isArray(grade12) && grade12.length > 0 && newId) {
-      const rows = grade12
-        .filter((r) => r.subject && r.points)
-        .map((r) => ({
-          application_id: newId,
-          subject: String(r.subject).trim(),
-          points: parseInt(r.points, 10),
-        }));
-
-      if (rows.length) {
-        const gRes = await fetch(`${supabaseUrl}/rest/v1/grade12_results`, {
-          method: "POST",
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify(rows),
-        });
-        if (!gRes.ok) {
-          console.warn("grade12 insert warning:", await gRes.text());
-        }
-      }
-    }
-
+    const newId = await rpcRes.json();
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, id: newId }),
+      body: JSON.stringify({ id: newId, ok: true }),
     };
   } catch (err) {
     console.error("submit-application error:", err);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "Internal server error" }),
+      body: JSON.stringify({ error: "Unexpected error. Please try again later." }),
     };
   }
 };
