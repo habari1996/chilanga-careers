@@ -75,10 +75,9 @@ export default function App() {
       setSession(null);
       setSelectedJobId(null);
       setTab("home");
-    } catch (e) {
-      console.error(e);
-      setSession(null);
-      setTab("home");
+    } catch (err) {
+      console.error("Sign out error:", err);
+      alert("Failed to sign out. Please try again.");
     }
   };
 
@@ -103,7 +102,7 @@ export default function App() {
                 lineHeight: 1.2,
               }}>
                 Chilanga Cement<br />
-                Step Up Program 2026
+                Careers
               </h1>
               <p style={{
                 fontSize: isMobile ? "1.05rem" : "1.35rem",
@@ -113,7 +112,7 @@ export default function App() {
                 marginBottom: isMobile ? 28 : 40,
                 lineHeight: 1.6,
               }}>
-                At Chilanga Cement, we build more than infrastructure — we build careers and futures.
+                Join Chilanga Cement and help build Zambia's infrastructure and your career.
               </p>
               <div style={{
                 display: "flex",
@@ -150,20 +149,17 @@ export default function App() {
                     fontWeight: 600,
                   }}
                 >
-                  View Open Roles
+                  View Open Positions
                 </button>
               </div>
 
               <div style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
-                gap: isMobile ? 16 : 24,
-                marginTop: isMobile ? 20 : 40,
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                gap: isMobile ? 20 : 32,
+                maxWidth: 800,
+                margin: "0 auto"
               }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>60+</div>
-                  <div style={{ color: "#64748b", marginTop: 6, fontSize: isMobile ? "0.85rem" : undefined }}>Years of Excellence</div>
-                </div>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: isMobile ? "1.8rem" : "2.5rem", fontWeight: 700, color: "#0f172a" }}>500+</div>
                   <div style={{ color: "#64748b", marginTop: 6, fontSize: isMobile ? "0.85rem" : undefined }}>Employees Nationwide</div>
