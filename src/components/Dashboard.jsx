@@ -489,10 +489,13 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       {selectedApplicant && (
         <div style={{
           position: "fixed", top: 0, right: 0, width: isMobile ? "100%" : 400, height: "100%",
-          background: "white", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", zIndex: 40, overflowY: "auto", padding: 20
+          background: "white", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", zIndex: 200, overflowY: "auto",
+          padding: 20, paddingTop: isMobile ? 72 : 20
         }}>
-          <button onClick={() => setSelectedApplicant(null)} style={{ float: "right", border: "none", background: "#f1f5f9", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}>Close</button>
-          <h3 style={{ marginTop: 0, wordBreak: "break-word" }}>{selectedApplicant.full_name}</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+            <h3 style={{ margin: 0, wordBreak: "break-word", flex: 1 }}>{selectedApplicant.full_name}</h3>
+            <button type="button" onClick={() => setSelectedApplicant(null)} style={{ flexShrink: 0, border: "none", background: "#f1f5f9", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 600, fontSize: "0.95rem" }}>✕ Close</button>
+          </div>
           <p style={{ color: "#64748b", wordBreak: "break-all" }}>{selectedApplicant.email}</p>
           <p>{selectedApplicant.phone} · {selectedApplicant.gender} · Age {selectedApplicant.age}</p>
           <p>{selectedApplicant.qualification} — {selectedApplicant.institution}</p>
@@ -534,7 +537,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       )}
 
       {showJobModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 210, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ background: "white", borderRadius: 16, padding: isMobile ? 20 : 28, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0 }}>Post New Job</h3>
@@ -557,7 +560,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       )}
 
       {confirm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 220, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ background: "white", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400 }}>
             <h3 style={{ marginTop: 0 }}>{confirm.title}</h3>
             <p style={{ color: "#475569" }}>{confirm.message}</p>
@@ -573,7 +576,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       )}
 
       {toast.show && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, background: "#0f172a", color: "white", padding: "12px 20px", borderRadius: 10, zIndex: 80, boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>
+        <div style={{ position: "fixed", bottom: 24, right: 24, background: "#0f172a", color: "white", padding: "12px 20px", borderRadius: 10, zIndex: 230, boxShadow: "0 8px 24px rgba(0,0,0,0.2)" }}>
           {toast.message}
         </div>
       )}
