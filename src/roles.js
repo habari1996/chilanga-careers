@@ -1,6 +1,6 @@
 // src/roles.js
 //
- // Primary source of truth for HR roles is the public.hr_staff table
+// Primary source of truth for HR roles is the public.hr_staff table
 // (see migration 20260817160000_hr_staff_and_storage_notes.sql).
 // This client-side map is kept as a fast fallback / offline reference
 // and for the period before the migration is applied.
@@ -21,8 +21,11 @@ const USER_ROLES = {
   "nduwa.mtonga@huaxin.com": ROLES.HR_MANAGER,
   "mulenga.mutale@huaxin.com": ROLES.HR_MANAGER,
 
-  // Admin / Testing
+  // Admin / Testing — Kudzanai Siame (all common login variants)
   "kudzanai.siame@huaxincem.com": ROLES.ADMIN,
+  "kudzanai.siame@huaxin.com": ROLES.ADMIN,
+  "kudzanai.siame@chilangacement.co.zm": ROLES.ADMIN,
+  "eng.siame@gmail.com": ROLES.ADMIN,
 };
 
 // Permissions for each role
