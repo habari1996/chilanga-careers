@@ -1,147 +1,138 @@
 import React, { useState } from "react";
+import useIsMobile from "../hooks/useIsMobile";
 import { supabase } from "../supabaseClient";
 
 export default function TrackApplication() {
+  const isMobile = useIsMobile();
   const [email, setEmail] = useState("");
-  const [application, setApplication] = useState(null);
+  const [fullName, setFullName] = useState("");
+  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const trackApplication = async () => {
-    if (!email.trim()) {
-      setError("Please enter your email address");
-      return;
-    }
-
-    // Basic validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    setLoading(true);
+  const handleTrack = async (e) => {
+    e.preventDefault();
     setError("");
-    setApplication(null);
-
+    setResults(null);
+    if (!email.trim() || !fullName.trim()) {
+      setError("Enter both the full name and email used on the application.");
+      return;
+    }
+    setLoading(true);
     try {
-      const cleanEmail = email.trim().toLowerCase();
-
-      const { data, error: fetchError } = await supabase
-        .rpc("track_application", { p_email: cleanEmail });
-
-      if (fetchError) throw fetchError;
-
-      if (data && data.length > 0) {
-        setApplication(data[0]);
+      const { data, error: rpcError } = await supabase.rpc("track_application", {
+        p_email: email.trim().toLowerCase(),
+        p_full_name: fullName.trim(),
+      });
+      if (rpcError) throw rpcError;
+      if (!data || data.length === 0) {
+        setError("No matching application found. Check the name and email, then try again.");
       } else {
-        setError("No application found with this email address.\n\nPlease make sure you are using the exact email you applied with.");
+        setResults(data);
       }
     } catch (err) {
       console.error(err);
-      setError("Error searching for application: " + err.message);
+      setError("Could not look up application. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") trackApplication();
-  };
-
-  const statusColor = (status) => {
-    if (status === "Hired") return { bg: "#dcfce7", color: "#166534" };
-    if (status === "Shortlisted") return { bg: "#dbeafe", color: "#1e40af" };
-    if (status === "Rejected") return { bg: "#fee2e2", color: "#b91c1c" };
-    return { bg: "#fef3c7", color: "#92400e" };
-  };
-
   return (
-    <div style={{ maxWidth: 700, margin: "60px auto", padding: "0 16px" }}>
-      <div style={{ background: "white", padding: 40, borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.08)", textAlign: "center" }}>
-        <h2 style={{ marginBottom: 8 }}>Track Your Application</h2>
-        <p style={{ color: "#666", marginBottom: 30 }}>
-          Enter the email address you used to submit your application
-        </p>
-
-        <input
-          type="email"
-          placeholder="your@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={{
-            width: "100%",
-            maxWidth: 420,
-            padding: "14px",
-            fontSize: "16px",
-            border: "1px solid #cbd5e1",
-            borderRadius: 10,
-            marginBottom: 20,
-            boxSizing: "border-box"
-          }}
-        />
-
-        <button
-          onClick={trackApplication}
-          disabled={loading}
-          style={{
-            padding: "14px 40px",
-            background: "#b45309",
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            fontSize: "16px",
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1
-          }}
-        >
-          {loading ? "Searching..." : "Track My Application"}
+    <div style={{ maxWidth: 520, margin: "0 auto", padding: isMobile ? "16px 8px" : "24px 0" }}>
+      <h2 style={{ marginTop: 0, fontSize: isMobile ? "1.35rem" : "1.75rem" }}>Track Your Application</h2>
+      <p style={{ color: "#64748b", lineHeight: 1.6 }}>
+        Enter the <strong>full name</strong> and <strong>email</strong> exactly as on your application.
+        Only status information is shown.
+      </p>
+      <form onSubmit={handleTrack} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+        <div>
+          <label htmlFor="track-name" style={labelStyle}>Full name</label>
+          <input
+            id="track-name"
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="As written on the application"
+            style={inputStyle}
+            autoComplete="name"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="track-email" style={labelStyle}>Email</label>
+          <input
+            id="track-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            style={inputStyle}
+            autoComplete="email"
+            required
+          />
+        </div>
+        <button type="submit" disabled={loading} style={btnStyle}>
+          {loading ? "Searching..." : "Track application"}
         </button>
-
-        {error && (
-          <p style={{ color: "#ef4444", marginTop: 20, fontWeight: 500, whiteSpace: "pre-line" }}>{error}</p>
-        )}
-
-        {application && (
-          <div style={{ marginTop: 40, textAlign: "left", background: "#f8fafc", padding: 30, borderRadius: 12 }}>
-            <h3 style={{ color: "#16a34a", marginBottom: 20, marginTop: 0 }}>✅ Application Found</h3>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "10px 0", color: "#64748b", width: "40%" }}>Applicant</td>
-                  <td style={{ padding: "10px 0", fontWeight: 500 }}>{application.full_name}</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "10px 0", color: "#64748b" }}>Email</td>
-                  <td style={{ padding: "10px 0" }}>{application.email}</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "10px 0", color: "#64748b" }}>Status</td>
-                  <td style={{ padding: "10px 0" }}>
-                    <span style={{ padding: "5px 16px", borderRadius: 20, background: statusColor(application.status).bg, color: statusColor(application.status).color, fontWeight: 600, fontSize: 13 }}>
-                      {application.status || "Under Review"}
-                    </span>
-                  </td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "10px 0", color: "#64748b" }}>Qualification</td>
-                  <td style={{ padding: "10px 0" }}>{application.qualification || "—"}</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: "10px 0", color: "#64748b" }}>Applied On</td>
-                  <td style={{ padding: "10px 0" }}>{new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: 20, padding: 16, background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a", fontSize: 14, color: "#78350f" }}>
-              Our HR team will contact you at this email address if shortlisted.
+      </form>
+      {error && (
+        <p style={{ color: "#b91c1c", marginTop: 16 }} role="alert">{error}</p>
+      )}
+      {results && results.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          {results.map((row, i) => (
+            <div
+              key={i}
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: "1.05rem" }}>Status: {row.status || "—"}</div>
+              {row.qualification && (
+                <div style={{ color: "#475569", marginTop: 6 }}>Qualification: {row.qualification}</div>
+              )}
+              {row.created_at && (
+                <div style={{ color: "#64748b", marginTop: 6, fontSize: "0.9rem" }}>
+                  Submitted: {new Date(row.created_at).toLocaleDateString("en-GB", {
+                    day: "numeric", month: "short", year: "numeric",
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px 14px",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  fontSize: "1rem",
+  boxSizing: "border-box",
+};
+const labelStyle = {
+  display: "block",
+  marginBottom: 6,
+  fontWeight: 600,
+  fontSize: "0.9rem",
+  color: "#374151",
+};
+const btnStyle = {
+  padding: "14px",
+  background: "#b45309",
+  color: "white",
+  border: "none",
+  borderRadius: 10,
+  fontWeight: 600,
+  fontSize: "1.05rem",
+  cursor: "pointer",
+};
