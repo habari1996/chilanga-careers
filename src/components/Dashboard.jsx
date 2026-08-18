@@ -26,7 +26,9 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const [grade12Data, setGrade12Data] = useState({});
   const [docUrls, setDocUrls] = useState({ cv: null, qualifications: null, tertiary: null, nrc: null });
   const [docsLoading, setDocsLoading] = useState(false);
-  const [pendingJobs, setPendingJobs] = useState([]);
+  const [allJobs, setAllJobs] = useState([]);
+  const [jobStatusFilter, setJobStatusFilter] = useState("All");
+  const [showJobsPanel, setShowJobsPanel] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [confirmReason, setConfirmReason] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -68,11 +70,16 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
     fetchGrade12Results();
   }, [apps]);
 
-  const fetchPendingJobs = async () => {
-    const { data, error } = await supabase.from("jobs").select("*").eq("status", "Pending Approval").order("created_at", { ascending: false });
-    if (!error) setPendingJobs(data || []);
+  const fetchAllJobs = async () => {
+    const { data, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
+    if (!error) setAllJobs(data || []);
   };
-  useEffect(() => { fetchPendingJobs(); }, []);
+  useEffect(() => { fetchAllJobs(); }, []);
+
+  const pendingJobs = allJobs.filter(j => j.status === "Pending Approval");
+  const managedJobs = jobStatusFilter === "All"
+    ? allJobs
+    : allJobs.filter(j => j.status === jobStatusFilter);
 
   const cvPathFromStored = (stored) => {
     if (!stored) return null;
@@ -210,7 +217,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
       showToast("Job submitted for approval");
       setShowJobModal(false);
       setNewJob({ title: "", location: "Lusaka", department: "Open (Multiple fields)", job_type: "Full-time", description: "", deadline: "" });
-      fetchPendingJobs();
+      fetchAllJobs();
     } catch (e) {
       alert(e.message || "Failed to post job");
     } finally {
@@ -230,7 +237,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         }).eq("id", jobId);
         if (error) throw error;
         showToast("Job published");
-        fetchPendingJobs();
+        fetchAllJobs();
         if (refreshData) await refreshData();
       }
     });
@@ -244,7 +251,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         const { error } = await supabase.from("jobs").update({ status: "Rejected" }).eq("id", jobId);
         if (error) throw error;
         showToast("Job rejected");
-        fetchPendingJobs();
+        fetchAllJobs();
       }
     });
   };
@@ -257,7 +264,21 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         const { error } = await supabase.from("jobs").delete().eq("id", jobId);
         if (error) throw error;
         showToast("Job deleted");
-        fetchPendingJobs();
+        fetchAllJobs();
+        if (refreshData) await refreshData();
+      }
+    });
+  };
+
+  const closeJob = async (jobId) => {
+    openConfirm({
+      title: "Close Job",
+      message: "Close this job so it no longer appears on the public Jobs page?",
+      onConfirm: async () => {
+        const { error } = await supabase.from("jobs").update({ status: "Closed" }).eq("id", jobId);
+        if (error) throw error;
+        showToast("Job closed");
+        fetchAllJobs();
         if (refreshData) await refreshData();
       }
     });
@@ -298,6 +319,11 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
         <h2 style={{ margin: 0, fontSize: isMobile ? "1.35rem" : "1.75rem" }}>Recruiter Dashboard</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canPostJobs && <button onClick={() => setShowJobModal(true)} style={addBtn}>+ Post New Job</button>}
+          {(canPostJobs || canApproveJobs) && (
+            <button onClick={() => setShowJobsPanel(v => !v)} style={exportBtn}>
+              {showJobsPanel ? "Hide Jobs" : "Manage Jobs"}
+            </button>
+          )}
           {canExportCSV && <button onClick={exportCSV} style={exportBtn}>Export CSV</button>}
         </div>
       </div>
@@ -311,10 +337,54 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
                 <strong>{job.title}</strong>
                 <span style={{ color: "#64748b", marginLeft: 8, fontSize: "0.9rem" }}>{job.location} • {job.department}</span>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={() => approveJob(job.id)} style={{ padding: "6px 14px", background: "#059669", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>Approve</button>
                 <button onClick={() => rejectJob(job.id)} style={{ padding: "6px 14px", background: "#dc2626", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>Reject</button>
                 <button onClick={() => deleteJob(job.id, job.title)} style={{ padding: "6px 14px", background: "#475569", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showJobsPanel && (canPostJobs || canApproveJobs) && (
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: "1.05rem" }}>Manage Jobs ({managedJobs.length})</h3>
+            <select value={jobStatusFilter} onChange={e => setJobStatusFilter(e.target.value)} style={{ ...mInput, width: "auto", minWidth: 160 }}>
+              <option value="All">All statuses</option>
+              <option value="Pending Approval">Pending Approval</option>
+              <option value="Published">Published</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Closed">Closed</option>
+              <option value="Draft">Draft</option>
+            </select>
+          </div>
+          {managedJobs.length === 0 && (
+            <p style={{ color: "#94a3b8", margin: 0 }}>No jobs in this filter.</p>
+          )}
+          {managedJobs.map(job => (
+            <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ wordBreak: "break-word" }}>{job.title}</strong>
+                <div style={{ color: "#64748b", fontSize: "0.85rem", marginTop: 2 }}>
+                  {job.location || "—"} • {job.department || "—"} • <span style={{
+                    color: job.status === "Published" ? "#059669" : job.status === "Pending Approval" ? "#b45309" : job.status === "Rejected" ? "#dc2626" : "#64748b",
+                    fontWeight: 600
+                  }}>{job.status}</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {job.status === "Pending Approval" && canApproveJobs && (
+                  <>
+                    <button onClick={() => approveJob(job.id)} style={{ padding: "6px 12px", background: "#059669", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.85rem" }}>Approve</button>
+                    <button onClick={() => rejectJob(job.id)} style={{ padding: "6px 12px", background: "#dc2626", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.85rem" }}>Reject</button>
+                  </>
+                )}
+                {job.status === "Published" && (
+                  <button onClick={() => closeJob(job.id)} style={{ padding: "6px 12px", background: "#0f172a", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.85rem" }}>Close</button>
+                )}
+                <button onClick={() => deleteJob(job.id, job.title)} style={{ padding: "6px 12px", background: "#475569", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.85rem" }}>Delete</button>
               </div>
             </div>
           ))}
@@ -378,7 +448,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
                   {app.status === "New" && <span style={{ marginLeft: 8, background: "#dbeafe", color: "#1d4ed8", fontSize: "0.75rem", padding: "2px 8px", borderRadius: 999 }}>New</span>}
                 </div>
               </div>
-              <span style={{ fontSize: "0.8rem", color: "#64748b" }}>{app.status}</span>
+              <span style={{ fontSize: "0.8rem", color: "#64748b", whiteSpace: "nowrap" }}>{app.status}</span>
             </div>
             <div style={{ marginTop: 8, fontSize: "0.9rem", color: "#475569" }}>
               <div>{app.qualification}</div>
@@ -488,7 +558,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
             {(confirm.title === "Rejected" || confirm.title === "Bulk Rejected" || confirm.title === "Reject Job") && (
               <textarea value={confirmReason} onChange={e => setConfirmReason(e.target.value)} placeholder="Optional reason..." style={{ ...mInput, minHeight: 80, marginBottom: 12 }} />
             )}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "end", gap: 8 }}>
               <button onClick={closeConfirm} style={{ padding: "10px 16px", border: "1px solid #e2e8f0", background: "white", borderRadius: 8, cursor: "pointer" }}>Cancel</button>
               <button onClick={handleConfirm} disabled={confirmLoading} style={{ padding: "10px 16px", background: "#0f172a", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>{confirmLoading ? "Working..." : "Confirm"}</button>
             </div>
