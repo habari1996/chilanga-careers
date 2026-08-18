@@ -107,11 +107,11 @@ export default function JobList({ jobs, setTab }) {
               position: "fixed",
               inset: 0,
               background: "rgba(15, 23, 42, 0.55)",
-              zIndex: 1000,
+              zIndex: 1100,
             }}
             onClick={() => setSelectedJob(null)}
           />
-          <div style={modalContainer}>
+          <div style={{ ...modalContainer, paddingTop: isMobile ? 80 : 20, zIndex: 1101 }}>
             <div
               style={{
                 ...modalContent,
@@ -120,13 +120,15 @@ export default function JobList({ jobs, setTab }) {
                 maxWidth: isMobile ? "100%" : "640px",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                <h3 style={{ margin: 0, fontSize: isMobile ? "1.25rem" : "1.5rem", fontWeight: 700, color: "#0f172a" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12 }}>
+                <h3 style={{ margin: 0, fontSize: isMobile ? "1.25rem" : "1.5rem", fontWeight: 700, color: "#0f172a", flex: 1, wordBreak: "break-word" }}>
                   {selectedJob.title}
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setSelectedJob(null)}
-                  style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#64748b", lineHeight: 1 }}
+                  style={{ flexShrink: 0, background: "#f1f5f9", border: "none", borderRadius: 8, fontSize: 18, cursor: "pointer", color: "#0f172a", lineHeight: 1, padding: "8px 12px", fontWeight: 600 }}
+                  aria-label="Close"
                 >
                   ✕
                 </button>
@@ -255,7 +257,7 @@ const modalContainer = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  zIndex: 1001,
+  zIndex: 1101,
   padding: "20px",
 };
 
