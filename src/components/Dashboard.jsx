@@ -259,8 +259,14 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
   const deleteJob = async (jobId, jobTitle) => {
     openConfirm({
       title: "Delete Job",
-      message: `Permanently delete "${jobTitle || "this job"}"? This cannot be undone.`,
+      message: `Permanently delete "${jobTitle || "this job"}"? Linked applications will be kept but unlinked from this job. This cannot be undone.`,
       onConfirm: async () => {
+        const { error: unlinkErr } = await supabase
+          .from("applications")
+          .update({ job_id: null })
+          .eq("job_id", jobId);
+        if (unlinkErr) throw unlinkErr;
+
         const { error } = await supabase.from("jobs").delete().eq("id", jobId);
         if (error) throw error;
         showToast("Job deleted");
@@ -558,7 +564,7 @@ export default function Dashboard({ apps, refreshData, userEmail, permissions })
             {(confirm.title === "Rejected" || confirm.title === "Bulk Rejected" || confirm.title === "Reject Job") && (
               <textarea value={confirmReason} onChange={e => setConfirmReason(e.target.value)} placeholder="Optional reason..." style={{ ...mInput, minHeight: 80, marginBottom: 12 }} />
             )}
-            <div style={{ display: "flex", justifyContent: "end", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button onClick={closeConfirm} style={{ padding: "10px 16px", border: "1px solid #e2e8f0", background: "white", borderRadius: 8, cursor: "pointer" }}>Cancel</button>
               <button onClick={handleConfirm} disabled={confirmLoading} style={{ padding: "10px 16px", background: "#0f172a", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>{confirmLoading ? "Working..." : "Confirm"}</button>
             </div>
